@@ -37,6 +37,9 @@ pull requests — see the
 - **To revise**, edit the file in your fork and push; the pull request updates
   automatically.
 - Reviewers may loop in additional subject-matter experts for input.
+- The submission format is versioned and may evolve. Your submission is reviewed
+  against the `format_version` your file declares — see
+  [SUBMISSION_FORMAT.md](SUBMISSION_FORMAT.md) for the compatibility rules.
 - **Acceptance = merge.** When review concludes positively, a maintainer approves and
   merges the pull request. Merged submissions are considered for publication on the
   AI Metrology Center in a subsequent update.

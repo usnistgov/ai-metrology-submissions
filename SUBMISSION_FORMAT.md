@@ -4,9 +4,11 @@ A submission is **one YAML file describing one metric or measurement methodology
 added under `submissions/`. Name the file after the metric, in lowercase with hyphens:
 `submissions/<metric-name>.yml` (e.g. `submissions/toxicity-score.yml`).
 
-**Six keys are required:** `name`, `applied_definition`, `submitter_organizations`,
-`contact_email`, `references`, `implementation_resources`. Everything else is
-optional — include what you can, and delete optional keys that don't apply.
+**Seven keys are required:** `format_version`, `name`, `applied_definition`,
+`submitter_organizations`, `contact_email`, `references`, `implementation_resources`.
+Everything else is optional — include what you can, and delete optional keys that
+don't apply. The current format version is **`1.0`** — see
+[Format versioning](#format-versioning) for how the format evolves over time.
 
 The fastest way to start is to copy the [template](#template) below or one of the
 worked [example submissions](../../pulls?q=is%3Apr+label%3Aexample-submission), which
@@ -23,6 +25,12 @@ The **Type** column tells you how to write the value in YAML:
 - **list** — one or more entries, each on its own line starting with `- `.
 - **list of allowed values** — a list whose entries must come from the values named
   in the Description column, spelled exactly as shown.
+
+### Format version
+
+| Field | Key | Required | Type | Description |
+|---|---|---|---|---|
+| Format Version | `format_version` | **yes** | text | The version of this submission format the file follows — copy the current version, `"1.0"`, quotes included. Not part of the metric itself; see [Format versioning](#format-versioning). |
 
 ### Section 1 — Identification and attribution
 
@@ -78,6 +86,9 @@ everything, and you may keep or delete them.
 #     titles), wrap the value in "double quotes" or use a ">-" block.
 # ---------------------------------------------------------------------------
 
+# --- Format version (required) — copy as-is, quotes included ---
+format_version: "1.0"
+
 # --- Section 1: Identification and attribution (all four keys required) ---
 name: <formal name of the metric or measurement methodology>
 applied_definition: |
@@ -120,3 +131,44 @@ related_metrics:              # optional
 computational_requirements: <hardware or environment needs>   # optional
 usage_rights: <license or permissions, e.g. Apache License 2.0>   # optional
 ```
+
+## Format versioning
+
+The submission format will evolve — fields may be added, removed, or changed. The
+`format_version` key keeps every file interpretable over time: each submission declares
+the format it was written against, so a file that was valid when submitted stays
+meaningful even after the format moves on.
+
+Versions are **MAJOR.MINOR** (`1.0`, `1.1`, `2.0`, …):
+
+- A **minor** bump is backwards-compatible — adding an optional field, adding an
+  allowed value, clarifying wording. Every file valid under `1.x` is still valid under
+  any later `1.y`.
+- A **major** bump is breaking — adding a required field, removing or renaming a
+  field, changing a field's type, or removing an allowed value. A file written for
+  `1.x` may not be a valid `2.0` file.
+
+What this means in practice:
+
+- **New submissions** declare the current version; the [template](#template) always
+  carries it, so copying the template is enough.
+- **Open pull requests** are reviewed against the version they declare. A minor bump
+  never affects an open PR. If a major bump lands while your PR is open, maintainers
+  will tell you what, if anything, needs updating.
+- **Merged submissions are never retroactively invalidated.** They keep their declared
+  version, so `submissions/` may legitimately contain files of different versions, and
+  anything consuming them can use `format_version` to interpret each file. When a major
+  version lands, maintainers may migrate existing files in a dedicated PR, updating
+  each file's `format_version` along with its content.
+- A file with no `format_version` key predates versioning and is treated as `1.0`.
+
+**For maintainers** — a format change is a single PR that: updates the field tables and
+the template, bumps the version everywhere this document states it (intro, template,
+history), and adds a row to the history below. A major bump should also update the
+worked example submissions.
+
+### Format history
+
+| Version | Date | Changes |
+|---|---|---|
+| `1.0` | 2026-07-23 | Initial versioned format: the day-1 field set plus the required `format_version` key. |
