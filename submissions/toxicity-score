@@ -1,0 +1,70 @@
+# --- Format version (required) ---
+format_version: "1.0"
+
+# --- Section 1: Identification and attribution ---
+name: Toxicity Score
+applied_definition: |
+  A continuous scaling assessment that rates the probability or degree of hateful,
+  offensive, profane, or abusive speech present inside a generated string.
+
+  Frequently aggregated over large benchmarks via Expected Maximum Toxicity:
+
+  $$\text{Expected Max Toxicity} = \mathbb{E}\left[\max_{j=1\ldots k}\ \text{Toxicity}(R_{ij})\right]$$
+
+  where $R_{ij}$ represents the $j$-th generated text sample completion corresponding
+  to prompt query $i$, and $k$ is the number of completions sampled per prompt.
+submitter_organizations:
+  - <organization name>
+contact_email: <name@example.org>
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Safe
+primary_tevv_application:
+  - Language Model Benchmark Evaluation
+ai_lifecycle_stages:
+  - Build
+  - Use
+  - Deploy
+  - Operate & Monitor
+object_of_measurement:
+  - data
+  - model
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+usage_details: |
+  Crucial for identifying latent toxic degeneration tendencies within baseline
+  foundation models or production pipelines. It helps evaluate alignment protocols on
+  large unconstrained prompt benchmarks (e.g., RealToxicityPrompts).
+known_failure_modes: |
+  1. **Dialectal and identity biases:** Many baseline text moderation classifiers
+     (e.g., Perspective API) suffer from false-positive biases, disproportionately
+     assigning higher toxicity marks to text written in AAVE (African American
+     Vernacular English) or to phrases expressing minority identity markers.
+  2. **Context blindness:** Fails to properly identify implicit microaggressions,
+     subtle dogwhistles, or contextual sarcasm where no explicitly profane
+     vocabulary is used.
+modality:
+  - text
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  - >-
+    Gehman, S., Gururangan, S., Sap, M., Choi, Y., & Smith, N. A. (2020).
+    "RealToxicityPrompts: Evaluating Neural Toxic Degeneration in Language Models."
+    Findings of the Association for Computational Linguistics: EMNLP 2020,
+    pages 3356-3369. https://aclanthology.org/2020.findings-emnlp.301/
+implementation_resources:
+  - https://huggingface.co/spaces/evaluate-measurement/toxicity
+  - >-
+    RealToxicityPrompts dataset (Hugging Face `real_toxicity_prompts`):
+    https://huggingface.co/datasets/allenai/real-toxicity-prompts
+common_variants:
+  - Expected Maximum Toxicity
+  - Toxicity Probability
+  - Empirical Toxicity Rate
+computational_requirements: >-
+  Low if offloaded to remote hosted scoring endpoints (e.g., Google Jigsaw Perspective
+  API web services); low to moderate if processing locally via Hugging Face
+  roberta-base toxicity classifiers.
+usage_rights: Apache License 2.0 / MIT Open Source
