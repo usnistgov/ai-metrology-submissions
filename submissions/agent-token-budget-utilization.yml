@@ -1,0 +1,163 @@
+format_version: "1.0"
+
+# --- Section 1: Identification and attribution ---
+name: Agent Token Budget Utilization
+applied_definition: |
+  How much of its token budget an agent actually burned in a single
+  invocation.
+
+  $$\mathrm{TBU} = \frac{\text{tokens\_consumed}}{\text{token\_budget\_limit}}$$
+
+  tokens_consumed = total input + output tokens across all LLM calls in one
+  agent invocation. Sub-agent tokens are excluded—otherwise the numbers
+  double-count when you roll up to a parent. token_budget_limit is simply the
+  cap the orchestrator set for that invocation.
+
+  TBU tells you how the agent stopped. Well below 1.0, the agent finished on
+  its own terms—it stopped because it was done, and you can evaluate its
+  output against task requirements normally. The interesting case is when TBU
+  approaches 1.0. That means the agent was killed by budget enforcement, and
+  the output is whatever partial state existed at the moment the plug was
+  pulled. You can't validate it in the ISO 9000:2015 sense—objective evidence
+  that requirements for intended use have been fulfilled—because the reasoning
+  process that would produce such evidence was terminated externally. (The
+  NIST AI RMF uses the same definition of validation, for what it's worth.)
+
+  This is a reliability problem under the AI RMF's Valid and Reliable
+  characteristic. Reliability means performing as required under given
+  conditions (ISO/IEC TS 5723:2022). An agent that hit its token ceiling
+  didn't meet those conditions. Full stop. And this isn't just correlational—
+  test-time compute scaling research (Snell et al. 2024) shows output quality
+  degrades as a direct function of inference budget.
+
+  Reported as a histogram across invocations. Look at the percentiles—P95
+  TBU above 0.9 means your agents are routinely hitting budget walls instead
+  of finishing their work, and that should concern you.
+submitter_organizations:
+  - Independent Contributor
+contact_email: 5340827+elang2@users.noreply.github.com
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Valid & Reliable
+  - Safe
+  - Accountable & Transparent
+ai_lifecycle_stages:
+  - Deploy
+  - Operate & Monitor
+object_of_measurement:
+  - agent
+  - system
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+usage_details: |
+  Use this to catch agents that ran out of tokens before finishing their task.
+  An agent at TBU near 1.0 was cut off mid-work—and you should not trust that
+  output the same way you trust output from an agent that concluded on its
+  own. This metric exposes that pattern at scale, across thousands of
+  invocations where manual inspection isn't feasible.
+
+  Three trustworthiness applications:
+
+  1. Reliability monitoring: P95 TBU above 0.9 means agents are routinely
+     producing incomplete outputs because they hit budget limits, not because
+     they finished. You can't stand behind those results.
+  2. Safety: sudden shifts in the TBU distribution tell you something
+     abnormal is happening—prompt injection causing runaway inference,
+     infinite tool loops, a model burning through retries because it's
+     degraded. You catch it before bad outputs reach users. I've seen
+     production systems operate in this regime for weeks before anyone
+     noticed.
+  3. Governance: audit trail showing agents stayed within token limits
+     (EU AI Act Article 12 record-keeping, Article 72 post-market
+     monitoring).
+
+  Works with any framework that enforces token budgets per invocation: AutoGen
+  (TokenUsageTermination), custom orchestrators with per-invocation caps.
+  Frameworks using iteration counts instead (LangGraph recursion_limit, CrewAI
+  max_iter, OpenAI Agents SDK max_turns) can adapt by computing token
+  consumption within each bounded iteration window. The adaptation is
+  straightforward; the hard part is getting the token counts right.
+known_failure_modes: |
+  1. Budget not configured: most frameworks today default to no token-level
+     cap—frankly an oversight the ecosystem hasn't corrected yet. No budget
+     means undefined denominator. TBU can't be computed. Report it as
+     unavailable rather than defaulting to infinity or picking an arbitrary
+     cap.
+  2. Budget inflation: an operator sets token_budget_limit absurdly high and
+     TBU looks healthy regardless of output quality. You can spot the
+     pattern: uniformly low TBU across all invocations no matter how complex
+     the task. Cross-check with Agent Completion Rate.
+  3. Sampling bias: tail-based sampling drops short-lived invocations first.
+     These tend to be the low-utilization ones. The histogram skews toward
+     high-utilization runs and you think you have a bigger problem than you
+     do. Use head-based sampling.
+  4. Token counting inconsistency: providers count tokens differently—prompt
+     caching, system message handling, tool-call overhead all vary across
+     vendors and even across model versions from the same vendor. The
+     numerator MUST use the same counting method as whatever enforces the
+     budget. Mixing in a separate tokenizer produces numbers that look
+     precise but are wrong.
+  5. Multi-model invocations: if an agent mixes models with very different
+     token costs (GPT-4o and GPT-4o-mini, say), the utilization number blends
+     tokens that aren't equivalent. TBU measures volume, not spend. This is
+     deliberate—cost normalization belongs in a separate metric—but operators
+     need to understand it.
+modality:
+  - text
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  - >-
+    National Institute of Standards and Technology (2023). "Artificial
+    Intelligence Risk Management Framework (AI RMF 1.0)." NIST AI 100-1.
+    https://doi.org/10.6028/NIST.AI.100-1
+  - >-
+    Snell, C., Lee, J., Xu, K., and Kumar, A. (2024). "Scaling LLM Test-Time
+    Compute Optimally can be More Effective than Scaling Model Parameters."
+    arXiv:2408.03314. https://arxiv.org/abs/2408.03314
+  - >-
+    Gershman, S.J., Horvitz, E.J., and Tenenbaum, J.B. (2015). "Computational
+    Rationality: A Converging Paradigm for Intelligence in Brains, Minds, and
+    Machines." Science, 349(6245), 273-278.
+    https://doi.org/10.1126/science.aac6076
+  - >-
+    ISO/IEC TS 5723:2022. "Trustworthiness — Vocabulary." International
+    Organization for Standardization.
+  - >-
+    OpenTelemetry Semantic Conventions for Generative AI (2025). Agent Spans
+    specification defining invoke_agent span semantics.
+    https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans/
+  - >-
+    OpenTelemetry GenAI Semantic Conventions (2026). Proposed Budget Governance
+    Attributes. Pull Request #439, open-telemetry/semantic-conventions-genai
+    (under review). Defines gen_ai.agent.token_budget.limit,
+    gen_ai.agent.token_budget.consumed, and
+    gen_ai.invoke_agent.token_budget.utilization histogram metric.
+    https://github.com/open-telemetry/semantic-conventions-genai/pull/439
+implementation_resources:
+  - >-
+    https://github.com/open-telemetry/semantic-conventions-genai/pull/439 —
+    OpenTelemetry semantic convention (under review) defining the token budget
+    attributes and utilization histogram metric with reference scenarios.
+  - >-
+    https://github.com/microsoft/autogen — AutoGen multi-agent framework
+    implementing TokenUsageTermination condition for per-invocation token
+    budget enforcement with termination reason tracking.
+  - >-
+    https://github.com/open-telemetry/opentelemetry-python-contrib — Python
+    OpenTelemetry instrumentation libraries providing GenAI span collection
+    infrastructure.
+common_variants:
+  - Cost Budget Utilization (monetary spend / cost cap, in currency units)
+  - Iteration Budget Utilization (iterations consumed / iteration limit)
+  - Time Budget Utilization (wall-clock duration / timeout)
+related_metrics:
+  - Agent Iteration Budget Utilization
+  - Token Consumption Rate (tokens per second per invocation)
+  - Agent Completion Rate (tasks completed normally vs budget-terminated)
+computational_requirements: >-
+  Negligible. Requires only arithmetic division on two counters already
+  maintained by the agent framework's budget enforcement mechanism. No
+  additional inference calls or GPU resources needed.
+usage_rights: Apache License 2.0
