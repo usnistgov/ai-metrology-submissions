@@ -1,4 +1,4 @@
-# Submitting a metric
+# Submission guide
 
 This repository accepts **metrics and measurement methodologies** for AI test,
 evaluation, verification, and validation (TEVV), proposed for inclusion in the
