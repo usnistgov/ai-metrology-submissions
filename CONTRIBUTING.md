@@ -31,6 +31,10 @@ pull requests — see the
 
 ## What to expect after submitting
 
+- **Review typically starts within about two weeks** of your pull request being opened.
+  That is when you can expect first contact from a reviewer, not when review concludes —
+  discussion may continue for a while after. If two weeks pass with no response, you are
+  welcome to leave a comment on your pull request as a reminder.
 - **Review happens on the pull request.** Reviewers may ask questions or request
   changes as PR comments. You'll be notified by email — make sure GitHub email
   notifications are enabled on your account.
