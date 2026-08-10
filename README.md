@@ -34,6 +34,6 @@ Do **not** submit proprietary or confidential information. The submission file a
 review discussion are publicly visible, and any content posted here is considered public
 disclosure and non-confidential.
 
-## Questions
+## Questions or Feedback
 
 Open an [issue](../../issues).
