@@ -2,4 +2,9 @@
 # who are notified by email when a submission is opened. Each login must be a
 # collaborator with write access or higher, or GitHub silently ignores the entry.
 # Add maintainers to the line below (space-separated) as they are onboarded.
-*  @amironesei-dot @jphall663
+
+# default owners for everything in the repo, unless a later match takes precedence,
+*               @marionlb
+
+# default owners for submissions
+/submissions/   @amironesei-dot @jphall663
