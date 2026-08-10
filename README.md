@@ -8,6 +8,11 @@ A submission is a GitHub **pull request** adding one YAML file that describes on
 or measurement method. Review happens in the open, on the pull request; an accepted
 (merged) submission is considered for publication on the AI Metrology Center.
 
+> **This is a new process.** We are standing up community submissions for the first time,
+> and we expect to refine it as we go: the submission format may evolve, guidance may be
+> clarified, and response times may be uneven while we ramp up. Thank you for your
+> patience — early submitters are helping us shape this.
+
 ## Submit a metric
 
 1. Read the [submission guide](CONTRIBUTING.md) and the
