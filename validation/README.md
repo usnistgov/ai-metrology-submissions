@@ -58,12 +58,33 @@ uv run --with=check-jsonschema -- check-jsonschema --schemafile validation/schem
 ```
 
 
+## For reviewers
+
+Before reading a submission, check it is worth reading:
+
+```sh
+validation/check-pr.sh 42      # one pull request
+validation/check-prs.sh        # every open one, ✅/❌ per line
+validation/check-prs.sh -v     # …and why the failures fail
+```
+
+Both are read-only: they publish nothing, change no pull request, touch no check run,
+and leave your working tree, branch, and refs exactly as they were. They ignore whether
+a pull request already has a check — the question they answer is simply "is this
+well-formed enough to review?"
+
+`check-pr.sh` exits `0` when it passes, `1` when it fails, and `4` when it could not
+check at all (no network, missing tool). That third case is deliberately not `1`: a
+failed lookup is not a verdict on somebody's submission.
+
 ## What is in here
 
 | File | What it is |
 |---|---|
 | `schemas/v1.json` | The submission format, machine-readable. One file per **major** format version, so a file written against `1.x` keeps validating after the format moves on. |
 | `validate_submission.py` | The checks a schema cannot express, plus the explainer for step 2's output. |
+| `check-pr.sh`, `check-prs.sh` | The reviewer commands above. |
+| `publish_check_runs.py` | Maintainers only — publishes the result as a check on the pull request. See the runbook. |
 
 The workflow that runs these on your pull request is
 [`.github/workflows/validate-submission.yml`](../.github/workflows/validate-submission.yml).
