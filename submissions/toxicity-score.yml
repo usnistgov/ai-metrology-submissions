@@ -3,6 +3,7 @@
 # This file demonstrates what a completed metric submission looks like.
 # The submitter organization and contact email below are fictional.
 # =============================================================================
+schema_version: "1.0"   # submission-schema version (see SUBMISSION_FORMAT.md)
 
 # --- Section 1: Identification and attribution ---
 name: Toxicity Score
