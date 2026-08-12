@@ -48,6 +48,7 @@ import sys
 from dataclasses import dataclass, field
 from difflib import get_close_matches
 from pathlib import Path
+from collections.abc import Hashable
 from typing import Any
 
 import yaml
@@ -66,8 +67,10 @@ SUBMISSIONS_PREFIX = "submissions/"
 # called, and is reported against as one.
 SUBMISSIONS_EXEMPT = frozenset({"README.md"})
 
-# A submission is a page of text. Anything much larger is a mistake or an attack, and
-# refusing it early keeps a hostile file from ever reaching the YAML parser.
+# A submission is a page of text. Anything much larger is a mistake or an attack. The
+# blob is already in memory by the time this is applied — git hands it over whole — so
+# this bounds what the *parser* sees, not what is read. The read itself is bounded by
+# GitHub's own push limit, which is the only reason that is tolerable.
 MAX_FILE_BYTES = 200 * 1024
 
 # Maintainers can set this label to wave a pull request past these checks — for example
@@ -78,8 +81,11 @@ BYPASS_LABEL = "skip-validation"
 
 MAX_REPORTED_PROBLEMS = 30
 
-FILENAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*\.(?:yml|yaml)$")
-SCHEMA_VERSION_RE = re.compile(r"^(\d+)\.(\d+)$")
+# The single structured hand-off between the halves of this check.
+RESULT_FILE = "result.json"
+
+FILENAME_RE = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\.(?:yml|yaml)\Z")
+SCHEMA_VERSION_RE = re.compile(r"\A(\d+)\.(\d+)\Z")
 TOP_LEVEL_KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:")
 CHECKBOX_RE = re.compile(r"^[ \t]*[-*][ \t]+\[([ xX])\][ \t]*(.*)$", re.MULTILINE)
 
@@ -90,13 +96,15 @@ PLACEHOLDER_RE = re.compile(r"<[^<>\n]*\s[^<>\n]*>")
 TEMPLATE_LEFTOVERS = ("[!TIP]", "Replace this box", "Guidance for submitters")
 
 ALIAS_REFUSED = "YAML aliases (`*name`) are not allowed in submissions"
+DUPLICATE_KEY = "the same key is given twice"
+UNHASHABLE_KEY = "a list or mapping is used as a key"
 
 # What `schema_version` was called until 2026-08-12. Files written against the old
 # template still carry it, so it is worth naming in the error rather than letting the
 # schema report an unknown key and a missing one.
 RENAMED_VERSION_KEY = "format_version"
 
-REPO_URL = "https://github.com/usnistgov/didactic-rotary-phone"
+REPO_URL = "https://github.com/usnistgov/ai-metrology-submissions"
 FORMAT_DOC = f"{REPO_URL}/blob/main/SUBMISSION_FORMAT.md"
 GUIDE_DOC = f"{REPO_URL}/blob/main/CONTRIBUTING.md"
 
@@ -137,6 +145,32 @@ class Report:
         return [f for f in self.findings if f.level == "warning"]
 
 
+def code(value: object) -> str:
+    """Render an untrusted value as an inline code span that cannot escape itself.
+
+    Every finding quotes something the submitter chose — a path, a key, a value echoed
+    back by the schema checker. Plain backticks around those let a backtick *in* the
+    value close the span and turn the remainder into live Markdown, and a `|` splits
+    whichever table cell it lands in. So the fence is made longer than any run inside
+    the value, and padded when the value itself starts or ends with a backtick.
+    """
+    text = str(value).replace("\n", " ").replace("\r", " ").replace("|", "\\|")
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    ticks = "`" * (longest + 1)
+    pad = " " if text.startswith("`") or text.endswith("`") else ""
+    return f"{ticks}{pad}{text}{pad}{ticks}"
+
+
+def escape_data(value: str) -> str:
+    """Escape a workflow-command payload, per GitHub's own rules."""
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def escape_property(value: str) -> str:
+    """As `escape_data`, plus the two characters that delimit properties."""
+    return escape_data(value).replace(":", "%3A").replace(",", "%2C")
+
+
 def emit_annotations(report: Report) -> None:
     """Emit GitHub workflow annotations, which surface on the run page."""
     if not os.environ.get("GITHUB_ACTIONS"):
@@ -144,11 +178,13 @@ def emit_annotations(report: Report) -> None:
     for finding in report.findings[:MAX_REPORTED_PROBLEMS]:
         params = []
         if finding.file:
-            params.append(f"file={finding.file}")
+            params.append(f"file={escape_property(finding.file)}")
         if finding.line:
-            params.append(f"line={finding.line}")
-        # Annotation messages are single-line; newlines must be escaped.
-        text = finding.message.replace("\n", "%0A")
+            params.append(f"line={int(finding.line)}")
+        # Both halves are attacker-influenced. The message was escaped before; the
+        # `file=` property is a raw git path, and a newline in it forges a whole extra
+        # annotation with an attacker-chosen path, level and text.
+        text = escape_data(finding.message)
         joined = ",".join(params)
         prefix = f"::{finding.level} {joined}::" if params else f"::{finding.level}::"
         print(prefix + text)
@@ -181,7 +217,7 @@ def render_report(report: Report) -> str:
         lines += ["✅ **Passed.** Nothing further is needed from you.", ""]
 
     if report.checked:
-        checked = ", ".join(f"`{path}`" for path in report.checked)
+        checked = ", ".join(code(path) for path in report.checked)
         lines += [f"Checked: {checked}", ""]
 
     if report.findings:
@@ -190,9 +226,11 @@ def render_report(report: Report) -> str:
             icon = "❌" if finding.level == "error" else "⚠️"
             where = ""
             if finding.file and finding.line:
-                where = f"`{finding.file}` line {finding.line}<br>"
+                where = f"{code(finding.file)} line {int(finding.line)}<br>"
             elif finding.file:
-                where = f"`{finding.file}`<br>"
+                where = f"{code(finding.file)}<br>"
+            # No `|` escaping here: every untrusted value is already wrapped by
+            # code(), which does it at the source. Doing it twice double-escapes.
             body = finding.message.replace("\n", "<br>")
             lines.append(f"| {icon} | {where}{body} |")
         if len(report.findings) > MAX_REPORTED_PROBLEMS:
@@ -272,7 +310,7 @@ def changed_files(base: str, head: str) -> list[tuple[str, str]]:
 
 
 class SubmissionLoader(yaml.SafeLoader):
-    """SafeLoader that additionally refuses YAML aliases.
+    """SafeLoader that additionally refuses YAML aliases and repeated keys.
 
     A submission has no legitimate use for `*aliases`, and a one-kilobyte file full of
     them expands into gigabytes (the "billion laughs" attack), which would take the
@@ -289,6 +327,31 @@ class SubmissionLoader(yaml.SafeLoader):
                 event.start_mark,
             )
         return super().compose_node(parent, index)
+
+    def construct_mapping(self, node, deep=False):
+        """Refuse a key that appears twice.
+
+        YAML keeps the last one and says nothing. In a repository where review happens
+        by reading the diff, that lets a reviewer approve one `name:` while the file
+        that gets published carries another — and no schema can catch it, because by
+        the time a validator sees the document the loser is already gone.
+        """
+        seen = set()
+        for key_node, _value in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if not isinstance(key, Hashable):
+                # PyYAML's own construct_mapping guards this; overriding it without
+                # the guard turned a clean finding into an uncaught TypeError.
+                raise yaml.constructor.ConstructorError(None, None, f"{UNHASHABLE_KEY}", key_node.start_mark)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    None,
+                    None,
+                    f"{DUPLICATE_KEY}: {code(key)}",
+                    key_node.start_mark,
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep)
 
 
 def top_level_key_lines(text: str) -> dict[str, int]:
@@ -342,7 +405,7 @@ def readable(error: dict, schema: dict) -> str:
         for name in re.findall(r"'([^']+)'", message):
             close = get_close_matches(name, known, n=1, cutoff=0.7)
             if close:
-                hints.append(f"`{name}` → did you mean `{close[0]}`?")
+                hints.append(f"{code(name)} → did you mean {code(close[0])}?")
         return message + (("  " + "; ".join(hints)) if hints else "")
 
     # A value outside a controlled vocabulary: "'Text' is not one of ['text', ...]"
@@ -408,7 +471,7 @@ def check_changed_paths(changes: list[tuple[str, str]], report: Report) -> list[
 
     others = sorted({path for _status, path in changes} - set(submissions))
     if others:
-        listed = ", ".join(f"`{path}`" for path in others[:8])
+        listed = ", ".join(code(path) for path in others[:8])
         if len(others) > 8:
             listed += f", and {len(others) - 8} more"
         report.error(
@@ -418,26 +481,30 @@ def check_changed_paths(changes: list[tuple[str, str]], report: Report) -> list[
         )
 
     if len(submissions) > 1:
-        listed = ", ".join(f"`{path}`" for path in submissions)
+        listed = ", ".join(code(path) for path in submissions)
         report.error(
             f"This pull request adds {len(submissions)} submission files ({listed}), "
             "but each pull request must submit exactly one metric or measurement "
             "method. Please split them up.",
         )
 
+    deleted: set[str] = set()
     for status, path in changes:
         if path not in submissions:
             continue
         if status.startswith("D"):
             report.error(
-                f"This pull request deletes `{path}`. Merged submissions are not "
+                f"This pull request deletes {code(path)}. Merged submissions are not "
                 "removed through the submission process — please raise an issue "
                 "instead.",
                 file=path,
             )
+            # Nothing to read at the head of a branch that removed it; leaving it in
+            # would add a raw git error underneath the message above.
+            deleted.add(path)
         elif status.startswith("M"):
             report.warning(
-                f"This pull request modifies `{path}`, which is an already-merged "
+                f"This pull request modifies {code(path)}, which is an already-merged "
                 "submission, rather than adding a new one. Reviewers should confirm "
                 "the change is intended and comes from the original submitter.",
                 file=path,
@@ -447,22 +514,33 @@ def check_changed_paths(changes: list[tuple[str, str]], report: Report) -> list[
         relative = path[len(SUBMISSIONS_PREFIX) :]
         if "/" in relative:
             report.error(
-                f"`{path}` is in a subdirectory. A submission is a single file placed directly in `submissions/`.",
+                f"{code(path)} is in a subdirectory. A submission is a single file placed directly in `submissions/`.",
                 file=path,
             )
 
-    return submissions[:5]
+    return [path for path in submissions if path not in deleted][:5]
 
 
-def check_filename(path: str, report: Report) -> None:
+def check_filename(path: str, report: Report) -> bool:
+    """Is the name acceptable? A `False` here stops everything downstream.
+
+    Deliberately terminal rather than advisory. While this only reported and let the
+    file through, an unvetted name reached four separate consumers — a staged file, a
+    copy-and-run command in two scripts, and an annotation path — and each one grew its
+    own allowlist to compensate. Refusing here means a name that fails the rule is
+    never handled by anything, so those allowlists guard something that cannot happen.
+    """
     name = path[len(SUBMISSIONS_PREFIX) :].rsplit("/", maxsplit=1)[-1]
-    if not FILENAME_RE.match(name):
-        report.error(
-            f"`{name}` is not a valid submission file name. Name the file after your "
-            "metric in lowercase, with hyphens between words and a `.yml` extension — "
-            "for example `submissions/jailbreak-success-rate.yml`.",
-            file=path,
-        )
+    if FILENAME_RE.match(name):
+        return True
+    report.error(
+        f"{code(name)} is not a valid submission file name. Name the file after your "
+        "metric in lowercase, with hyphens between words and a `.yml` extension — "
+        "for example `submissions/jailbreak-success-rate.yml`. Nothing else about the "
+        "file was checked; rename it and push, and the rest runs.",
+        file=path,
+    )
+    return False
 
 
 def schema_file_for(
@@ -496,11 +574,13 @@ def schema_file_for(
         return None
 
     if not isinstance(version, str):
-        # Unquoted `1.0` is read by YAML as the number 1.0, and `1.10` would silently
-        # become 1.1. This is the single easiest mistake to make in the whole file.
+        # Deliberately does not echo `version` back: by the time we see it YAML has
+        # already mangled it — `1.10` arrives as 1.1, `yes` as True — so quoting what
+        # we were handed would advise a *different* version than the file names.
         report.error(
-            f"`schema_version` must be quoted text, but YAML read it as a number "
-            f'({version}). Write it as `schema_version: "{version}"`.',
+            "`schema_version` must be quoted text. Put quotes around the value on "
+            "that line: without them YAML reads it as a number, and `1.10` quietly "
+            'becomes `1.1`. The current version is `schema_version: "1.0"`.',
             file=path,
             line=anchor,
         )
@@ -540,24 +620,26 @@ def check_submission_file(
     Returns the staged path, or None if the file never got far enough to be worth
     validating against the schema.
     """
-    check_filename(path, report)
-
-    if tree.is_symlink(path):
-        report.error(
-            f"`{path}` is a symbolic link. A submission must be a regular YAML file.",
-            file=path,
-        )
+    if not check_filename(path, report):
         return None
 
     try:
+        # Inside the same guard as the read: `is_symlink` shells out to git too, and
+        # an escape from it would surface as a traceback rather than as a finding.
+        if tree.is_symlink(path):
+            report.error(
+                f"{code(path)} is a symbolic link. A submission must be a regular YAML file.",
+                file=path,
+            )
+            return None
         raw = tree.read(path)
     except (OSError, RuntimeError) as exc:
-        report.error(f"Could not read `{path}`: {exc}", file=path)
+        report.error(f"Could not read {code(path)}: {exc}", file=path)
         return None
 
     if len(raw) > MAX_FILE_BYTES:
         report.error(
-            f"`{path}` is {len(raw) // 1024} KB. A submission describes one metric and "
+            f"{code(path)} is {len(raw) // 1024} KB. A submission describes one metric and "
             f"should be a few kilobytes; the limit is {MAX_FILE_BYTES // 1024} KB.",
             file=path,
         )
@@ -566,23 +648,38 @@ def check_submission_file(
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError:
-        report.error(f"`{path}` is not valid UTF-8 text.", file=path)
+        report.error(f"{code(path)} is not valid UTF-8 text.", file=path)
         return None
 
     if "\x00" in text:
-        report.error(f"`{path}` contains null bytes and is not a text file.", file=path)
+        report.error(f"{code(path)} contains null bytes and is not a text file.", file=path)
         return None
 
     try:
         data = yaml.load(text, Loader=SubmissionLoader)
+    except RecursionError:
+        report.error(
+            f"{code(path)} nests too deeply to parse. A submission is a flat list of"
+            " fields; nothing in it needs that structure.",
+            file=path,
+        )
+        return None
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         problem = getattr(exc, "problem", None) or str(exc).splitlines()[0]
         if problem == ALIAS_REFUSED:
             advice = f"{ALIAS_REFUSED}. Write each value out in full."
+        elif problem.startswith(UNHASHABLE_KEY):
+            advice = f"In {code(path)}, {problem}. Every field name must be plain text."
+        elif problem.startswith(DUPLICATE_KEY):
+            advice = (
+                f"In {code(path)}, {problem}. YAML would keep only the last one, so "
+                "whoever reviews the file could be reading a value that is not the "
+                "one published. Delete the copy you do not want."
+            )
         else:
             advice = (
-                f"`{path}` is not valid YAML: {problem}. A stray colon, tab, or "
+                f"{code(path)} is not valid YAML: {problem}. A stray colon, tab, or "
                 "inconsistent indentation is the usual cause; quote any value that "
                 "contains a colon followed by a space."
             )
@@ -590,12 +687,12 @@ def check_submission_file(
         return None
 
     if data is None:
-        report.error(f"`{path}` is empty.", file=path)
+        report.error(f"{code(path)} is empty.", file=path)
         return None
 
     if not isinstance(data, dict):
         report.error(
-            f"`{path}` must be a mapping of keys to values, like the template in "
+            f"{code(path)} must be a mapping of keys to values, like the template in "
             f"SUBMISSION_FORMAT.md, but it reads as {describe_value(data)}.",
             file=path,
         )
@@ -605,7 +702,7 @@ def check_submission_file(
     if non_text_keys:
         # YAML turns bare `yes`, `no`, `on` and `off` into booleans, keys included.
         report.error(
-            f"`{path}` has keys that are not text: {non_text_keys}. Quote them.",
+            f"{code(path)} has keys that are not text. Quote them.",
             file=path,
         )
         return None
@@ -620,6 +717,41 @@ def check_submission_file(
     if schema_file is None:
         return None
     return stage_for_schema_check(path, text, schema_file, stage_dir)
+
+
+def write_result(stage_dir: Path | None, report: Report, verdict: str, **extra) -> None:
+    """Publish one structured result, the only thing any other component reads.
+
+    This replaces three text interfaces that carried submitter-chosen bytes: the
+    `::error file=…::` wire format, the `Checked: \u0060path\u0060` line scraped back out of
+    the rendered Markdown, and a positional `read` in shell. Each of those could be
+    forged by a value appearing inside it. JSON cannot be forged from within a value,
+    so the whole class goes away rather than being escaped case by case.
+    """
+    if stage_dir is None:
+        return
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    existing = {}
+    target = stage_dir / RESULT_FILE
+    if target.exists():
+        existing = json.loads(target.read_text(encoding="utf-8"))
+    existing.update(
+        {
+            "result_version": 1,
+            "verdict": verdict,
+            "findings": [
+                {
+                    "level": finding.level,
+                    "message": finding.message,
+                    "path": finding.file,
+                    "line": finding.line,
+                }
+                for finding in report.findings
+            ],
+            **extra,
+        }
+    )
+    target.write_text(json.dumps(existing, indent=2), encoding="utf-8")
 
 
 def stage_for_schema_check(
@@ -650,7 +782,7 @@ def stage_for_schema_check(
         staged = stage_dir / SUBMISSIONS_PREFIX.strip("/") / Path(path).name
         staged.parent.mkdir(parents=True, exist_ok=True)
         staged.write_text(text, encoding="utf-8")
-        (stage_dir / "context.json").write_text(
+        (stage_dir / RESULT_FILE).write_text(
             json.dumps(
                 {
                     "display_path": path,
@@ -686,7 +818,7 @@ def check_name_matches_filename(data: dict, path: str, report: Report) -> None:
 
     if not tokens(stem) & tokens(name):
         report.warning(
-            f"The file is named `{stem}` but the metric is called “{name}”. "
+            f"The file is named {code(stem)} but the metric is called {code(name)}. "
             "Submissions are normally named after the metric; reviewers may ask "
             "you to rename it.",
             file=path,
@@ -731,6 +863,23 @@ def check_pull_request_body(body: str, report: Report) -> None:
 # --------------------------------------------------------------------------------
 # Entry point
 # --------------------------------------------------------------------------------
+
+
+def as_repo_path(raw: str) -> str | None:
+    """Turn a path typed on the command line into the repo-relative form used here.
+
+    Without this, `--files ./submissions/x.yml`, an absolute path, or a run from
+    inside `validation/` all fail the literal `startswith("submissions/")` test, and
+    the check reports "nothing to validate" and exits 0 — a false pass on the very
+    command submitters are told to run. Returns None if it is not a submission path,
+    which the caller turns into an error rather than a silent success.
+    """
+    candidate = Path(raw)
+    try:
+        relative = candidate.resolve().relative_to(REPO_ROOT).as_posix()
+    except (OSError, ValueError):
+        relative = Path(os.path.normpath(raw)).as_posix()
+    return relative if relative.startswith(SUBMISSIONS_PREFIX) else None
 
 
 def parse_labels(raw: str) -> set[str]:
@@ -788,8 +937,9 @@ def stage_inspect(args) -> int:
         found = check_submission_file(tree, path, report, stage_dir)
         schema_file = found or schema_file
 
-    context_file = stage_dir / "context.json" if stage_dir else None
+    context_file = stage_dir / RESULT_FILE if stage_dir else None
     ready = bool(schema_file) and not report.errors
+    write_result(stage_dir, report, "passed" if ready else "failed")
     emit_output("validate", "true" if ready else "false")
     if ready and context_file and context_file.exists():
         context = json.loads(context_file.read_text(encoding="utf-8"))
@@ -798,7 +948,9 @@ def stage_inspect(args) -> int:
         emit_output("schema_display", context["schema_display"])
         emit_output("file", context["display_path"])
 
-    code = finish(report)
+    # Not `code`: that is the name of the Markdown helper, and shadowing it here would
+    # make any later use of it a call on an int.
+    exit_code = finish(report)
 
     if ready and stage_dir is None:
         # Local run: the schema check is a separate command here too, by design —
@@ -809,7 +961,7 @@ def stage_inspect(args) -> int:
             f"{submissions[0]}\n",
         )
 
-    return code
+    return exit_code
 
 
 def infer_schema_file(text: str) -> Path | None:
@@ -868,7 +1020,7 @@ def stage_explain(args) -> int:
     # there is no such file, and check-jsonschema's own output names the file instead.
     context = {}
     if args.stage_dir:
-        context_file = Path(args.stage_dir) / "context.json"
+        context_file = Path(args.stage_dir) / RESULT_FILE
         if context_file.exists():
             context = json.loads(context_file.read_text(encoding="utf-8"))
 
@@ -1059,6 +1211,15 @@ def main(argv: list[str] | None = None) -> int:
             inspect.error(
                 "give --files to check a submission in your own copy, or --base to check what a pull request changes",
             )
+        if args.files:
+            resolved = [(raw, as_repo_path(raw)) for raw in args.files]
+            stray = [raw for raw, repo_path in resolved if repo_path is None]
+            if stray:
+                inspect.error(
+                    f"not a submission: {', '.join(stray)} — a submission is a file "
+                    f"in `{SUBMISSIONS_PREFIX}` inside a clone of this repository",
+                )
+            args.files = [repo_path for _raw, repo_path in resolved]
         return stage_inspect(args)
     return stage_explain(args)
 
