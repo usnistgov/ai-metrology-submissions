@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/usnistgov/didactic-rotary-phone/main/validation/schemas/v1.json",
+  "$id": "https://raw.githubusercontent.com/usnistgov/ai-metrology-submissions/main/validation/schemas/v1.json",
   "title": "AI Metrology Center metric submission, format 1.x",
   "description": "Machine-readable counterpart to SUBMISSION_FORMAT.md. One schema per MAJOR version: because MINOR bumps are backwards-compatible, every 1.x file is validated against this file. When the format changes, update this schema in the same pull request as SUBMISSION_FORMAT.md.",
   "type": "object",
