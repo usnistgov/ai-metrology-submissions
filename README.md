@@ -1,4 +1,4 @@
-# Metric submissions — NIST AI Metrology Center
+# NIST AI Metrology Center --- Community Submissions
 
 This repository is the public intake point for **community submissions of AI metrics and
 measurement methodologies** proposed for inclusion in the NIST AI Metrology Center:
