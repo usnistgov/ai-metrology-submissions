@@ -4,11 +4,11 @@ A submission is **one YAML file describing one metric or measurement methodology
 added under `submissions/`. Name the file after the metric, in lowercase with hyphens:
 `submissions/<metric-name>.yml` (e.g. `submissions/toxicity-score.yml`).
 
-**Seven keys are required:** `format_version`, `name`, `applied_definition`,
+**Seven keys are required:** `schema_version`, `name`, `applied_definition`,
 `submitter_organizations`, `contact_email`, `references`, `implementation_resources`.
 Everything else is optional — include what you can, and delete optional keys that
-don't apply. The current format version is **`1.0`** — see
-[Format versioning](#format-versioning) for how the format evolves over time.
+don't apply. The current schema version is **`1.0`** — see
+[Schema versioning](#schema-versioning) for how the format evolves over time.
 
 The fastest way to start is to copy the [template](#template) below or one of the
 worked [example submissions](../../pulls?q=is%3Apr+label%3Aexample-submission), which
@@ -30,7 +30,7 @@ The **Type** column tells you how to write the value in YAML:
 
 | Field | Key | Required | Type | Description |
 |---|---|---|---|---|
-| Format Version | `format_version` | **yes** | text | The version of this submission format the file follows — copy the current version, `"1.0"`, quotes included. Not part of the metric itself; see [Format versioning](#format-versioning). |
+| Schema Version | `schema_version` | **yes** | text | The version of the submission schema this file follows — copy the current version, `"1.0"`, quotes included. Not part of the metric itself; see [Schema versioning](#format-schema-versioning). |
 
 ### Section 1 — Identification and attribution
 
@@ -87,7 +87,7 @@ everything, and you may keep or delete them.
 # ---------------------------------------------------------------------------
 
 # --- Format version (required) — copy as-is, quotes included ---
-format_version: "1.0"
+schema_version: "1.0"
 
 # --- Section 1: Identification and attribution (all four keys required) ---
 name: <formal name of the metric or measurement methodology>
@@ -132,10 +132,10 @@ computational_requirements: <hardware or environment needs>   # optional
 usage_rights: <license or permissions, e.g. Apache License 2.0>   # optional
 ```
 
-## Format versioning
+## Format Schema versioning
 
 The submission format will evolve — fields may be added, removed, or changed. The
-`format_version` key keeps every file interpretable over time: each submission declares
+`schema_version` key keeps every file interpretable over time: each submission declares
 the format it was written against, so a file that was valid when submitted stays
 meaningful even after the format moves on.
 
@@ -157,18 +157,24 @@ What this means in practice:
   will tell you what, if anything, needs updating.
 - **Merged submissions are never retroactively invalidated.** They keep their declared
   version, so `submissions/` may legitimately contain files of different versions, and
-  anything consuming them can use `format_version` to interpret each file. When a major
+  anything consuming them can use `schema_version` to interpret each file. When a major
   version lands, maintainers may migrate existing files in a dedicated PR, updating
-  each file's `format_version` along with its content.
-- A file with no `format_version` key predates versioning and is treated as `1.0`.
+  each file's `schema_version` along with its content.
+- A file with no `schema_version` key predates versioning and is treated as `1.0`.
 
 **For maintainers** — a format change is a single PR that: updates the field tables and
 the template, bumps the version everywhere this document states it (intro, template,
 history), and adds a row to the history below. A major bump should also update the
 worked example submissions.
 
-### Format history
+### Schema history
 
 | Version | Date | Changes |
 |---|---|---|
-| `1.0` | 2026-07-23 | Initial versioned format: the day-1 field set plus the required `format_version` key. |
+| `1.0` | 2026-07-23 | Initial versioned format: the day-1 field set plus the required `schema_version` key. |
+
+The version key was called `format_version` until **2026-08-12**, when it was renamed to
+`schema_version`. Renaming a required key is a major change by the rules above, but the
+rename landed before any submission had been merged, so no file was invalidated and the
+version stays at `1.0`. A file still using the old name is told to rename the key, by
+name; the value it holds does not change.

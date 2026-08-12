@@ -17,7 +17,7 @@
 
 - [ ] This PR adds **one** YAML file under `submissions/`, following
   [SUBMISSION_FORMAT.md](https://github.com/usnistgov/didactic-rotary-phone/blob/main/SUBMISSION_FORMAT.md).
-- [ ] All required fields are filled in (`format_version`, name, applied
+- [ ] All required fields are filled in (`schema_version`, name, applied
   definition, submitter organization(s), contact email, references,
   implementation resources).
 - [ ] The submission contains **no proprietary or confidential information** ---
