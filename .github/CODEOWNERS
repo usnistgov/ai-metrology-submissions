@@ -8,3 +8,7 @@
 
 # default owners for submissions
 /submissions/   @amironesei-dot @jphall663
+
+# protecting the validation folder and the .github folder, which contains the CODEOWNERS file itself
+/validation/    @marionlb
+/.github/       @marionlb
