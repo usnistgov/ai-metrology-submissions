@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/usnistgov/didactic-rotary-phone/main/validation/schemas/v1.json",
+  "title": "AI Metrology Center metric submission, format 1.x",
+  "description": "Machine-readable counterpart to SUBMISSION_FORMAT.md. One schema per MAJOR version: because MINOR bumps are backwards-compatible, every 1.x file is validated against this file. When the format changes, update this schema in the same pull request as SUBMISSION_FORMAT.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "name",
+    "applied_definition",
+    "submitter_organizations",
+    "contact_email",
+    "references",
+    "implementation_resources"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "The schema version this file follows. Add each newly released 1.x version to this list.",
+      "type": "string",
+      "enum": ["1.0"]
+    },
+
+    "name": {
+      "description": "Formal name of the quantitative/qualitative measure or measurement methodology.",
+      "$ref": "#/$defs/text"
+    },
+    "applied_definition": {
+      "description": "Precise mathematical or textual description of the metric or measurement method.",
+      "$ref": "#/$defs/text"
+    },
+    "submitter_organizations": {
+      "description": "The entity or institution responsible for the submission.",
+      "$ref": "#/$defs/textList"
+    },
+    "contact_email": {
+      "$comment": "The placeholder guard used by `text` does not fit here: it requires a space between the angle brackets, and the template's own `<name@example.org>` has none — so it matched the address pattern and passed. No real address contains an angle bracket, so refusing them outright catches the unreplaced placeholder, and reuses the wording the other placeholder errors get.",
+      "description": "Professional point of contact for verification.",
+      "type": "string",
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "not": { "pattern": "[<>]" }
+    },
+
+    "ai_rmf_characteristics": {
+      "description": "Target AI RMF trustworthy characteristic(s).",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "Valid & Reliable",
+          "Safe",
+          "Secure & Resilient",
+          "Accountable & Transparent",
+          "Explainable & Interpretable",
+          "Privacy-Enhanced",
+          "Fair",
+          "Accurate & Bias-Managed"
+        ]
+      }
+    },
+    "primary_tevv_application": {
+      "description": "Methodology, tool type, or mathematical approach.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "Adversarial Robustness Evaluation",
+          "Red Teaming Evaluation Method",
+          "Automated Language Model Red Teaming Toolkit",
+          "Facial Recognition Benchmark Evaluation",
+          "Human-Centered Evaluation",
+          "Interpretability & Explanation Evaluation",
+          "Language Model Benchmark Evaluation",
+          "Object Recognition Benchmark Evaluation",
+          "Privacy & Security Evaluation",
+          "Tabular Data Benchmark Evaluation"
+        ]
+      }
+    },
+    "ai_lifecycle_stages": {
+      "description": "Phase(s) in the AI lifecycle where the metric or method is applied, one stage per entry.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "Plan and Design",
+          "Collect & Process Data",
+          "Build",
+          "Use",
+          "Deploy",
+          "Operate & Monitor"
+        ]
+      }
+    },
+    "object_of_measurement": {
+      "description": "The entity evaluated.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["agent", "task", "data", "model", "system", "user"]
+      }
+    },
+    "model_specificity": {
+      "description": "Either 'model agnostic', or 'model specific' plus which architectures.",
+      "$ref": "#/$defs/text"
+    },
+    "domain_specificity": {
+      "description": "Either 'domain agnostic', or 'domain specific' plus which domain(s).",
+      "$ref": "#/$defs/text"
+    },
+    "usage_details": {
+      "description": "Details or scenarios where the metric or method provides the most value.",
+      "$ref": "#/$defs/text"
+    },
+    "known_failure_modes": {
+      "description": "Scenarios where the metric or method may be misleading or easily gamed.",
+      "$ref": "#/$defs/text"
+    },
+    "modality": {
+      "description": "Primary input data category.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "text",
+          "vision",
+          "video",
+          "audio",
+          "structured data",
+          "physical",
+          "others"
+        ]
+      }
+    },
+
+    "references": {
+      "description": "Citations of peer-reviewed literature or NIST resources.",
+      "$ref": "#/$defs/textList"
+    },
+    "implementation_resources": {
+      "description": "Links to software, data, or other online resources implementing the approach.",
+      "$ref": "#/$defs/textList"
+    },
+    "common_variants": {
+      "description": "Related versions of the metric.",
+      "$ref": "#/$defs/textList"
+    },
+    "related_metrics": {
+      "description": "Complementary metrics to be measured in tandem.",
+      "$ref": "#/$defs/textList"
+    },
+    "computational_requirements": {
+      "description": "Hardware or environment needs.",
+      "$ref": "#/$defs/text"
+    },
+    "usage_rights": {
+      "description": "Licensing or permissions.",
+      "$ref": "#/$defs/text"
+    }
+  },
+
+  "$defs": {
+    "text": {
+      "$comment": "`not.pattern` rejects unreplaced <angle-bracket placeholders> copied from the template — angle brackets around text containing a space. It does not match `<b>` or `<0.5`.",
+      "type": "string",
+      "pattern": "\\S",
+      "not": { "pattern": "<[^<>\n]*\\s[^<>\n]*>" }
+    },
+    "textList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$comment": "See the note on `text`.",
+        "type": "string",
+        "pattern": "\\S",
+        "not": { "pattern": "<[^<>\n]*\\s[^<>\n]*>" }
+      }
+    }
+  }
+}

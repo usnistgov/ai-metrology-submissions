@@ -8,7 +8,7 @@ added under `submissions/`. Name the file after the metric, in lowercase with hy
 `submitter_organizations`, `contact_email`, `references`, `implementation_resources`.
 Everything else is optional — include what you can, and delete optional keys that
 don't apply. The current schema version is **`1.0`** — see
-[Schema versioning](#schema-versioning) for how the format evolves over time.
+[Schema versioning](#format-schema-versioning) for how the format evolves over time.
 
 The fastest way to start is to copy the [template](#template) below or one of the
 worked [example submissions](../../pulls?q=is%3Apr+label%3Aexample-submission), which
@@ -16,6 +16,28 @@ show two completed submissions end to end.
 
 > **Do not submit proprietary or confidential information** — any content posted is
 > considered public disclosure and non-confidential.
+
+This document is the reference; an automated check on your pull request enforces it, so
+a submission that departs from what is described below is reported back to you before a
+reviewer sees it. That check is one ordinary command, and you can run exactly it
+yourself before opening the pull request — no repository access needed:
+
+```sh
+pip install check-jsonschema
+check-jsonschema --schemafile validation/schemas/v1.json submissions/<your-file>.yml
+```
+
+If a message is hard to read, save it as JSON and have it explained with line numbers
+and suggestions for near-miss values:
+
+```sh
+check-jsonschema --schemafile validation/schemas/v1.json \
+    submissions/<your-file>.yml --output-format json \
+  | python3 validation/validate_submission.py explain -
+```
+
+[validation/README.md](validation/README.md) covers the rest of what the check looks at,
+and how to run all of it.
 
 ## Fields
 
@@ -25,6 +47,13 @@ The **Type** column tells you how to write the value in YAML:
 - **list** — one or more entries, each on its own line starting with `- `.
 - **list of allowed values** — a list whose entries must come from the values named
   in the Description column, spelled exactly as shown.
+
+Two rules apply to every field:
+
+- **Only the keys in these tables are recognised.** A key that is not listed —
+  including a misspelling of one that is — is reported as an error rather than
+  quietly ignored, so nothing you write ends up silently dropped.
+- **A list must not repeat an entry.** Each entry in a list field has to be distinct.
 
 ### Format version
 
@@ -163,9 +192,10 @@ What this means in practice:
 - A file with no `schema_version` key predates versioning and is treated as `1.0`.
 
 **For maintainers** — a format change is a single PR that: updates the field tables and
-the template, bumps the version everywhere this document states it (intro, template,
-history), and adds a row to the history below. A major bump should also update the
-worked example submissions.
+the template, updates the machine-readable schema that the automated check enforces
+(`validation/schemas/`, one file per major version), bumps the version
+everywhere this document states it (intro, template, history), and adds a row to the
+history below. A major bump should also update the worked example submissions.
 
 ### Schema history
 

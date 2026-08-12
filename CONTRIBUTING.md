@@ -31,6 +31,13 @@ pull requests — see the
 
 ## What to expect after submitting
 
+- **An automated check runs first**, within a minute of your pull request being opened
+  and again after every change you push. It confirms the mechanical things — that the
+  pull request adds a single YAML file under `submissions/`, that the file parses, and
+  that it matches the submission format. If something is off, the check fails and says
+  exactly what to change; correct it and push, and the check runs again. Reviewers turn
+  their attention to pull requests once this check is green. You can run the same
+  checks yourself before submitting — see [validation/README.md](validation/README.md).
 - **Review typically starts within about two weeks** of your pull request being opened.
   That is when you can expect first contact from a reviewer, not when review concludes —
   discussion may continue for a while after. If two weeks pass with no response, you are

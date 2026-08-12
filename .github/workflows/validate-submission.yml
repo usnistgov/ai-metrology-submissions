@@ -1,0 +1,130 @@
+name: Submission validation
+
+# Runs on every pull request and reports whether the submission is well-formed, so
+# reviewers only spend attention on submissions that already parse, follow the schema,
+# and touch nothing but their own file.
+#
+# WHY `pull_request_target` AND NOT `pull_request`
+#
+#   Public repositories require a maintainer to click "Approve and run" before a fork's
+#   workflow runs, for anyone who has not had a pull request merged before. In an
+#   intake repository essentially every submitter is that person, so `pull_request`
+#   would put a manual click in front of every single submission — the opposite of the
+#   point. `pull_request_target` runs the workflow as defined on the base branch,
+#   immediately and without approval, and cannot be altered by the pull request.
+#
+#   The price is that this job runs with repository context, so it must never execute
+#   anything that came from the pull request. It does not: the base branch is the only
+#   thing checked out, the submission is read as data with `git show`, and the pull
+#   request description is passed through the environment rather than interpolated
+#   into a shell command. `permissions` below is read-only and no secrets are used.
+#   Keep it that way when editing this file.
+#
+# Because the base-branch copy is what runs, changes to this workflow only take effect
+# once merged to main — a pull request cannot test its own version of it. Test the
+# steps locally instead; see validation/README.md:
+#
+#   python3 validation/validate_submission.py inspect --files submissions/<name>.yml
+#   check-jsonschema --schemafile validation/schemas/v1.json submissions/<name>.yml
+
+on:
+  pull_request_target:
+    branches: [main]
+    types:
+      - opened
+      - reopened
+      - synchronize # new commits pushed to the pull request
+      - edited # the description was changed, which the checklist check reads
+      - labeled # a maintainer may have applied skip-validation
+      - unlabeled
+
+permissions:
+  contents: read
+
+concurrency:
+  group: submission-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    # This name is the status-check context a ruleset refers to. Changing it silently
+    # detaches any "required status check" rule pointing at the old name.
+    name: validate-submission
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out the base branch (the trusted copy of the validator)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the pull request as data
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git fetch --no-tags origin \
+            "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr-head"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install validator dependencies
+        # check-jsonschema does the schema validation; PyYAML is used only for the
+        # pre-flight read (schema version, alias refusal) before that runs.
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check \
+            "PyYAML~=6.0" "check-jsonschema~=0.38"
+
+      # ------------------------------------------------------------------------
+      # Three steps, deliberately. The middle one is the schema check, run as the
+      # plain command a submitter can run themselves — so when it fails, the log
+      # shows exactly what failed and exactly how to reproduce it.
+      # ------------------------------------------------------------------------
+
+      - name: Check what the pull request changes
+        id: inspect
+        env:
+          # Passing these through the environment, rather than into the `run` script,
+          # is what stops a crafted title or description from becoming shell commands.
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          STAGE_DIR: ${{ runner.temp }}/submission
+        run: |
+          python3 validation/validate_submission.py inspect \
+            --base "$BASE_SHA" \
+            --head refs/remotes/origin/pr-head \
+            --stage-dir "$STAGE_DIR"
+
+      - name: Validate the submission against the schema
+        if: steps.inspect.outputs.validate == 'true'
+        env:
+          SCHEMA: ${{ steps.inspect.outputs.schema }}
+          SCHEMA_DISPLAY: ${{ steps.inspect.outputs.schema_display }}
+          FILE: ${{ steps.inspect.outputs.file }}
+        # Run from the staging directory, where the submission sits under the same
+        # relative path it has in the repository. check-jsonschema then reports
+        # `submissions/my-metric.yml`, matching the command printed below exactly.
+        working-directory: ${{ steps.inspect.outputs.workdir }}
+        run: |
+          echo "To reproduce this locally, from a clone of your fork:"
+          echo
+          echo "    pip install check-jsonschema"
+          echo "    check-jsonschema --schemafile $SCHEMA_DISPLAY $FILE"
+          echo
+          # A machine-readable copy for the reporting step. The run below is the one
+          # that decides pass or fail, so a failure here is not the signal.
+          check-jsonschema --schemafile "$SCHEMA" "$FILE" \
+            --output-format json > schema-errors.json || true
+          check-jsonschema --schemafile "$SCHEMA" "$FILE"
+
+      - name: Explain any schema errors
+        if: failure() && steps.inspect.outputs.validate == 'true'
+        env:
+          STAGE_DIR: ${{ runner.temp }}/submission
+        run: |
+          python3 validation/validate_submission.py explain \
+            "$STAGE_DIR/schema-errors.json" --stage-dir "$STAGE_DIR"
