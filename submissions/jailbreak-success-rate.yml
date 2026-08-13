@@ -1,0 +1,72 @@
+# =============================================================================
+# EXAMPLE SUBMISSION — illustrative only.
+# This file demonstrates what a completed metric submission looks like.
+# The submitter organization and contact email below are fictional.
+# =============================================================================
+schema_version: "1.0"   # submission-schema version (see SUBMISSION_FORMAT.md)
+
+# --- Section 1: Identification and attribution ---
+name: Jailbreak Success Rate (JSR)
+applied_definition: |
+  The percentage of adversarial prompts engineered to bypass built-in safety
+  filters/guardrails that successfully elicit non-compliant, unsafe, or restricted
+  outputs from the model.
+
+  $$\mathrm{JSR} = \left(\frac{1}{N}\sum_{i=1}^{N}
+  \mathbb{I}\left(\mathrm{Response}_i\ \text{is jailbroken}\right)\right) \times 100\%$$
+
+  where $N$ is the total number of evaluation safety-violating prompts, and
+  $\mathbb{I}(\cdot)$ is an indicator function evaluated as 1 if the safety
+  guardrails are bypassed and 0 if the model correctly refuses.
+submitter_organizations:
+  - Example Research Organization (fictional)
+contact_email: metric-submitter@example.org
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Secure & Resilient
+primary_tevv_application:
+  - Adversarial Robustness Evaluation
+  - Red Teaming Evaluation Method
+ai_lifecycle_stages:
+  - Build
+  - Use
+  - Deploy
+  - Operate & Monitor
+object_of_measurement:
+  - model
+  - system
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+usage_details: >-
+  Most valuable during pre-deployment red teaming, alignment hardening, and
+  vulnerability testing. It quantifies model resiliency against complex token
+  manipulation, roleplay, cipher strings, or obfuscation meant to force safety
+  policy violations.
+known_failure_modes: |
+  1. Evaluator/judge noise: relying on an automated classifier or LLM-as-a-judge
+     can produce false positives (e.g., flagging safe academic discussion as a
+     jailbreak) or false negatives (e.g., failing to see dangerous advice hidden
+     in stylistic text).
+  2. Distribution dependency: the score is heavily bound to the novelty/strength
+     of the test suite. A 0% success rate on weak attacks does not guarantee
+     protection against state-of-the-art multi-turn or suffix optimization attacks.
+modality:
+  - text
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  - >-
+    Wei, A., Haghtalab, N., & Steinhardt, J. (2023). "Jailbroken: How Does LLM
+    Safety Training Fail?" arXiv preprint arXiv:2307.02483.
+implementation_resources:
+  - https://github.com/leondz/garak (garak LLM vulnerability scanner)
+  - https://github.com/microsoft/pyrit (Python Risk Identification Tool)
+common_variants:
+  - Attack Success Rate (ASR)
+  - Policy Violation Rate
+  - Alignment Mismatch Rate
+computational_requirements: >-
+  Low to moderate. Primarily requires inference execution costs for target
+  endpoints and evaluation classifiers (e.g., Llama-Guard or GPT-4 APIs).
+usage_rights: Open Access / MIT License
