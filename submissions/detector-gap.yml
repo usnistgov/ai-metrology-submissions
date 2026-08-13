@@ -1,5 +1,5 @@
-# --- Format version ---
-format_version: "1.0"
+# --- Schema version ---
+schema_version: "1.0"
 
 # --- Section 1: Identification and attribution ---
 name: Detector Gap
