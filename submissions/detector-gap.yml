@@ -1,0 +1,168 @@
+# --- Schema version ---
+schema_version: "1.0"
+
+# --- Section 1: Identification and attribution ---
+name: Detector Gap
+applied_definition: |
+  The measured drop in a safety detector's hit rate between a hazard in its
+  canonical form and semantically equivalent obfuscations of that same hazard.
+  It measures the *detector*, not the model under test.
+
+  The method evaluates a paired control set, where each pair is one hazard
+  expressed twice: a surface form the detector is expected to catch, and an
+  obfuscated form that preserves the hazard while changing its surface syntax.
+
+  $$\mathrm{DG} = \frac{1}{|S|}\sum_{i \in S} \mathbb{I}(d_i) \;-\;
+  \frac{1}{|O|}\sum_{j \in O} \mathbb{I}(d_j)$$
+
+  where $S$ is the set of surface controls, $O$ the set of obfuscated controls
+  derived from them, and $\mathbb{I}(d)$ is 1 when the detector fires on that
+  item and 0 otherwise. The two terms are reported alongside the gap as
+  `surface_pass_rate` and `obfuscated_pass_rate`.
+
+  Two properties are essential to reading the result correctly:
+
+  1. **It is a floor, not a ceiling.** DG = 0.8 establishes that at least 80% of
+     detections are defeated by the transforms actually tested. It says nothing
+     about transforms not in the control set, so it can never certify coverage —
+     only demonstrate a lower bound on the blind spot. Report it as the
+     *minimum measured blind spot*.
+  2. **The gap is only defined over control membership.** Items outside the
+     paired set must be excluded rather than defaulted into the surface pool,
+     or the surface rate drifts toward the general benchmark pass rate and the
+     gap becomes arithmetic between two unrelated populations.
+
+  An unmeasured gap must be reported as absent, never as zero. A detector with
+  no control set has an *unknown* blind spot, which is a materially different
+  claim from a measured blind spot of zero, and collapsing the two is the
+  failure mode this metric exists to prevent.
+submitter_organizations:
+  - Ultra Lab (Ultra Creation Co., Ltd.)
+contact_email: risky9763@gmail.com
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Secure & Resilient
+  - Valid & Reliable
+  - Accountable & Transparent
+primary_tevv_application:
+  - Adversarial Robustness Evaluation
+  - Red Teaming Evaluation Method
+ai_lifecycle_stages:
+  - Build
+  - Use
+  - Deploy
+  - Operate & Monitor
+object_of_measurement:
+  - system
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+usage_details: |
+  Applies wherever a deterministic or learned detector gates AI output or input:
+  guardrail filters, prompt-injection classifiers, insecure-output-handling
+  scanners, and CI security gates that block on detector findings.
+
+  Its primary value is as a companion measurement to headline safety scores.
+  Metrics such as Jailbreak Success Rate quantify how often a system fails
+  against the tests that were run; Detector Gap quantifies how much of that
+  result is an artifact of the test set's surface form. A near-zero attack
+  success rate paired with a high Detector Gap indicates a detector that is
+  matching syntax rather than hazard, which is not visible from the headline
+  number alone.
+
+  It is also usable as a regression gate: a rising gap across catalog versions
+  shows detection coverage degrading relative to the transforms already known,
+  independently of whether the underlying model changed.
+
+  Reporting requirement: the gap is only interpretable next to the version of
+  the detector catalog it was measured against, since the denominator changes
+  whenever rules are added or removed. Publish the pair, not the score alone.
+
+  The method is independent of any particular detector or corpus. Computing it
+  requires only a detector that emits a binary fire/no-fire decision and a
+  paired corpus in which each hazard appears in both a canonical and an
+  obfuscated form. The resources listed below are one worked example, chosen
+  because their catalog is versioned and immutable, and are not a dependency of
+  the measurement.
+known_failure_modes: |
+  1. **Adversarial construction inflates the number.** A control set is built by
+     choosing transforms and confirming they defeat the detector. A gap near
+     1.0 therefore demonstrates that the chosen transforms work, not that the
+     detector is broadly blind. The figure observed for the cited catalog is
+     exactly 1.0 across four transform families, and it must be read as an
+     existence proof rather than a coverage estimate. Disclosure of how that
+     number was produced, since criterion 4 below sets a bar it does not fully
+     meet: the transforms were authored by an independent contributor, but the
+     work was scoped in public discussion with the detector's own maintainer,
+     who declared that conflict of interest at the outset. It is a
+     collaboration with a disclosed conflict, not an arms-length third-party
+     measurement.
+  2. **Not comparable across control sets.** Two systems measured with different
+     transform families produce gaps that cannot be ranked against each other.
+     The metric is designed for tracking one detector over time, or for
+     comparing detectors on an identical published control set.
+  3. **Semantic equivalence is an assumption, not a guarantee.** If a transform
+     silently neuters the hazard, the obfuscated item is a true negative and the
+     gap is overstated. Each pair needs the hazard preserved and verified
+     independently of the detector being measured.
+  4. **Gameable by construction if the control set is author-controlled.** A
+     vendor measuring its own detector can choose transforms it already handles
+     and publish a gap near zero. The metric is only meaningful with a control
+     set that is published, versioned, and separable from the detector's author.
+  5. **Silent under-reporting when a run is bounded.** If a harness caps results
+     or a control family fails to execute, an unpopulated pool can be mistaken
+     for a measured zero. Runs must distinguish "not measured" from "measured as
+     zero" explicitly.
+modality:
+  - text
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  - >-
+    National Institute of Standards and Technology (2023). "Artificial
+    Intelligence Risk Management Framework (AI RMF 1.0)." NIST AI 100-1.
+    https://doi.org/10.6028/NIST.AI.100-1
+  - >-
+    Greshake, K., Abdelnabi, S., Mishra, S., Endres, C., Holz, T., & Fritz, M.
+    (2023). "Not what you've signed up for: Compromising Real-World
+    LLM-Integrated Applications with Indirect Prompt Injection."
+    arXiv:2302.12173. https://arxiv.org/abs/2302.12173
+  - >-
+    OWASP Foundation (2025). "OWASP Top 10 for Large Language Model
+    Applications — LLM05:2025 Improper Output Handling."
+    https://genai.owasp.org/llm-top-10/ (This category was named "LLM02:
+    Insecure Output Handling" in the v1.1 edition; tooling and literature
+    predating the 2025 renumbering, including some cited below, still use the
+    older label.)
+implementation_resources:
+  - >-
+    https://github.com/EleutherAI/lm-evaluation-harness/pull/3809 — in-progress
+    integration as an lm-evaluation-harness task. Status as of this submission:
+    the five-field result schema (surface_pass_rate, obfuscated_pass_rate,
+    detector_gap, catalog_version, catalog_uri) is settled and merged into the
+    branch, but the two obfuscation-side aggregations deliberately return null
+    rather than zero because the control fixtures land separately, in draft PR
+    3973. The four-family figure cited above was produced by that draft's own
+    test suite against the fixtures, not yet by the harness's aggregation. One
+    open design question remains: the envelope's pass-rate fields and the
+    controls' detection-rate fields are opposite in polarity, and which
+    convention the aggregation adopts is not yet decided. The design discussion
+    is at issues/3771 and in both pull request threads.
+  - >-
+    https://github.com/ppcvote/prompt-defense-audit-py/releases/tag/v0.1.0 —
+    versioned detector catalog measured against (22 rules across 7 hazard
+    families), published with an explicit immutability and deprecation contract
+    so a reported gap stays reproducible against the version it was measured on.
+  - >-
+    https://github.com/ppcvote/prompt-defense-audit — MIT-licensed reference
+    detector (TypeScript and Python ports with enforced parity), zero runtime
+    dependencies.
+related_metrics:
+  - Jailbreak Success Rate (JSR)
+  - Attack Success Rate (ASR)
+  - False Negative Rate
+computational_requirements: >-
+  Low. The detector side is deterministic pattern matching and runs on CPU in
+  milliseconds; cost is dominated by generating or curating the paired control
+  set, which is a one-time authoring task rather than a per-run inference cost.
+usage_rights: Open Source (MIT License)
