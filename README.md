@@ -27,17 +27,23 @@ verification, and validation (TEVV) — the kinds of entries already published o
 flowchart TD
     A(["Fork this repository"]) --> B["Add one YAML file under submissions/"]
     B --> C["Open a pull request"]
-    C --> D{"Automated format check<br/>result within the hour"}
-    D -->|"something to fix"| B
-    D -->|"green"| E["A reviewer picks it up<br/>usually within two weeks"]
-    E --> F(["Merged = accepted"])
-    F --> G(["Considered for publication<br/>on the AI Metrology Center"])
+    C --> D{"Automated format check<br/> result within the hour"}
+    D -->|"green"| E["A reviewer picks it up<br/> usually within two weeks"]
+    E -->|"approved"| F(["Merged = accepted"])
+    F --> G(["Considered for publication<br/> on the AI Metrology Center"])
+
+    R["Edit the file in your fork and push,<br/> no new pull request needed"]
+    D -->|"something to fix"| R
+    E -->|"changes requested"| R
+    R --> D
 
     classDef step fill:#eef2f7,stroke:#41546b,stroke-width:1px,color:#1b2733
     classDef gate fill:#fff6e0,stroke:#a5761b,stroke-width:1px,color:#4a3505
     classDef done fill:#e6f4ea,stroke:#2c7a48,stroke-width:1px,color:#12321f
+    classDef revise fill:#f2eefb,stroke:#6b4fa5,stroke-width:1px,color:#2a1d45
     class A,B,C,E step
     class D gate
+    class R revise
     class F,G done
 ```
 
@@ -59,6 +65,7 @@ flowchart TD
 > **Everything here is public.** Do not submit proprietary or confidential information.
 > The submission file and all review discussion are publicly visible, and any content
 > posted here is considered public disclosure and non-confidential.
+
 ## Questions or Feedback
 
 Open an [issue](../../issues).
