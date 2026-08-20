@@ -1,0 +1,143 @@
+# CRUS-T runtime reliability score — submission to the NIST AI Metrology Center.
+# Format: SUBMISSION_FORMAT.md, schema v1.0.
+
+schema_version: "1.0"
+
+# --- Section 1: Identification and attribution ---
+name: "CRUS-T score — a tier-gated runtime reliability score for generative and agentic AI"
+
+applied_definition: |
+  CRUS-T is a normalized, programmatically computable runtime reliability score for
+  generative and agentic AI. It scores a capability, or a single execution trajectory,
+  on four dimensions — **C**onsistency, **R**obustness, **U**ncertainty awareness, and
+  **S**afety — each built from three auditable sub-metrics computed from logged
+  execution artefacts. Every sub-metric is normalized to $[0,1]$, oriented so higher is
+  better.
+
+  Each dimension aggregates its sub-metrics with a collapse-sensitive weighted geometric
+  mean with an $\varepsilon$-floor:
+  $$ G(\mathbf{m};\mathbf{w}) = \exp\!\left(\sum_i w_i \ln \max(m_i, \varepsilon)\right),\qquad \sum_i w_i = 1 . $$
+
+  Consistency uses self-consistency agreement across samples, paraphrase/perturbation
+  invariance, and numeric/structural stability. Robustness uses a performance-retention
+  ratio under distribution shift, a severity-weighted adversarial-resistance rate, and a
+  graded-degradation area. Uncertainty awareness uses $1-\mathrm{ECE}$ (expected
+  calibration error), abstention quality, and selective-prediction quality
+  ($1-\mathrm{AURC}/\mathrm{AURC}_{\max}$). Safety combines claim-level groundedness
+  (natural-language-inference entailment against cited sources), a severity-weighted
+  policy-conformance rate, and side-effect authorization.
+
+  Safety carries a discontinuous hard gate: a single critical policy violation sets the
+  governed safety score to zero regardless of the continuous score, so a catastrophic
+  failure can never be averaged away:
+  $$ S = S_{\text{cont}} \cdot \mathbb{1}[\text{no critical violation observed}] . $$
+
+  Governance gates per axis against a tier-specific threshold vector rather than on the
+  scalar composite, and — for a regulatory-grade decision — on a bootstrap lower
+  confidence bound of each dimension instead of the point estimate. The runtime response
+  is continue / escalate / contain, according to which axis, if any, falls below its
+  threshold. All weights, tolerances, and thresholds are governance parameters —
+  versioned and subject to challenge — not statistical defaults tuned to a desired
+  outcome.
+
+submitter_organizations:
+  - Independent (Satyaki Ghosh Dastidar)
+
+contact_email: satyaki.dastidar@gmail.com
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Valid & Reliable
+  - Safe
+  - Secure & Resilient
+  - Accountable & Transparent
+
+primary_tevv_application:
+  - Adversarial Robustness Evaluation
+  - Language Model Benchmark Evaluation
+
+ai_lifecycle_stages:
+  - Build
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - agent
+  - model
+  - system
+
+model_specificity: model agnostic
+
+domain_specificity: domain agnostic — developed and illustrated in Financial Services
+
+usage_details: |
+  Most valuable for continuously verifying, in production, that a generative or agentic
+  AI capability still meets the reliability envelope its design-time risk tier assumes —
+  and for turning that judgement into an automated continue / escalate / contain decision
+  per execution trajectory. The per-axis construction is diagnostic: it identifies which
+  reliability dimension (e.g. a low Uncertainty-awareness score signalling confident
+  hallucination) is responsible for a failure, rather than reporting only a single
+  composite number. Designed for regulated settings (e.g. financial services) where a
+  runtime control must be auditable and defensible to an examiner, but the construction
+  is domain-agnostic.
+
+known_failure_modes: |
+  (1) Evaluation-set representativeness: every score is only as valid as the evaluation
+  set is representative of the capability's true operating distribution; sampling bias is
+  the dominant source of measurement risk. (2) Dependency on learned verification
+  components: groundedness (S1) and semantic similarity (C1/C2) rely on an entailment or
+  embedding model that must itself be validated and governed on its own precision/recall,
+  or the hard gate inherits its blind spots. (3) Parameter gaming: weights, tolerances,
+  and thresholds are governance parameters and can be tuned until a report passes —
+  the framework surfaces this as a versioned change but cannot prevent it by
+  construction. (4) Ground-truth needs: abstention quality (U2) and selective-prediction
+  quality (U3) require knowing which cases would have been answered incorrectly, which is
+  not directly computable from production traffic and is proxied at runtime.
+
+modality:
+  - text
+  - structured data
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  - >-
+    Satyaki Ghosh Dastidar. "Proportionate Governance in Practice: An IDEA-CRUS-T
+    Framework for Risk-Tiered, Runtime-Governed AI Systems in Financial Services."
+    SSRN Working Paper, 2026. https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7075038
+  - >-
+    Chuan Guo, Geoff Pleiss, Yu Sun, Kilian Q. Weinberger. "On Calibration of Modern
+    Neural Networks." ICML, 2017. https://arxiv.org/abs/1706.04599
+  - >-
+    Yonatan Geifman, Ran El-Yaniv. "Selective Classification for Deep Neural Networks."
+    NeurIPS, 2017. https://arxiv.org/abs/1705.08500
+  - >-
+    Xuezhi Wang et al. "Self-Consistency Improves Chain of Thought Reasoning in Language
+    Models." ICLR, 2023. https://arxiv.org/abs/2203.11171
+  - >-
+    Shahul Es, Jithin James, Luis Espinosa-Anke, Steven Schockaert. "RAGAS: Automated
+    Evaluation of Retrieval Augmented Generation." arXiv, 2023.
+    https://arxiv.org/abs/2309.15217
+
+implementation_resources:
+  - https://github.com/satyakigd/crust
+
+common_variants:
+  - Point-estimate gating vs. bootstrap lower-confidence-bound gating for regulatory-grade decisions
+  - Composite scalar score vs. per-axis threshold-polygon gating
+  - Per-trajectory scoring vs. batch/portfolio roll-up across many runs
+
+related_metrics:
+  - Expected Calibration Error (ECE)
+  - Area Under the Risk-Coverage Curve (AURC)
+  - RAGAS faithfulness / claim-level groundedness
+  - Self-consistency agreement (Krippendorff's alpha)
+
+computational_requirements: >-
+  Python 3.10+; the score itself has no required runtime dependencies. Sub-metrics that
+  need a learned entailment or embedding model (groundedness S1, semantic similarity
+  C1/C2) or a task-quality function (Robustness) require those to be supplied and governed
+  separately, and may need a GPU depending on the model chosen.
+
+usage_rights: >-
+  Reference implementation released under the MIT License. The metric definition is
+  free to use; the reference paper is a preprint.
