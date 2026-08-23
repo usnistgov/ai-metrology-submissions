@@ -42,9 +42,8 @@ contact_email: risky9763@gmail.com
 
 # --- Section 2: Context and limitations ---
 ai_rmf_characteristics:
+  - Safe
   - Secure & Resilient
-  - Valid & Reliable
-  - Accountable & Transparent
 primary_tevv_application:
   - Adversarial Robustness Evaluation
   - Red Teaming Evaluation Method
@@ -90,9 +89,9 @@ known_failure_modes: |
      1.0 therefore demonstrates that the chosen transforms work, not that the
      detector is broadly blind. The figure observed for the cited catalog is
      exactly 1.0 across four transform families, and it must be read as an
-     existence proof rather than a coverage estimate. Disclosure of how that
-     number was produced, since criterion 4 below sets a bar it does not fully
-     meet: the transforms were authored by an independent contributor, but the
+     existence proof rather than a coverage estimate. How that number was
+     produced is disclosed here, since criterion 4 below sets a bar it does not
+     fully meet: the transforms were authored by an independent contributor, but the
      work was scoped in public discussion with the detector's own maintainer,
      who declared that conflict of interest at the outset. It is a
      collaboration with a disclosed conflict, not an arms-length third-party
@@ -119,14 +118,22 @@ modality:
 # --- Section 3: Provenance, tooling, and requirements ---
 references:
   - >-
-    National Institute of Standards and Technology (2023). "Artificial
-    Intelligence Risk Management Framework (AI RMF 1.0)." NIST AI 100-1.
-    https://doi.org/10.6028/NIST.AI.100-1
+    MITRE (2026). "AML.T0068: LLM Prompt Obfuscation." MITRE ATLAS, release
+    v2026.07. https://atlas.mitre.org/techniques/AML.T0068 (the attack this
+    metric quantifies: obfuscating content so it evades guardrails and other
+    detection mechanisms while the hazard itself survives).
   - >-
-    Greshake, K., Abdelnabi, S., Mishra, S., Endres, C., Holz, T., & Fritz, M.
-    (2023). "Not what you've signed up for: Compromising Real-World
-    LLM-Integrated Applications with Indirect Prompt Injection."
-    arXiv:2302.12173. https://arxiv.org/abs/2302.12173
+    MITRE (2026). "AML.M0020: Generative AI Guardrails." MITRE ATLAS, release
+    v2026.07. https://atlas.mitre.org/mitigations/AML.M0020 (the mitigation
+    being measured; Detector Gap reports how much of its coverage AML.T0068
+    removes, for one named catalog version).
+  - >-
+    Gao, L., Tow, J., Abbasi, B., Biderman, S., Black, S., DiPofi, A., Foster,
+    C., Golding, L., Hsu, J., Le Noac'h, A., Li, H., McDonell, K., Muennighoff,
+    N., Ociepa, C., Phang, J., Reynolds, L., Schoelkopf, H., Skowron, A.,
+    Sutawika, L., Tang, E., Thite, A., Wang, B., Wang, K., & Zou, A. (2024).
+    "The Language Model Evaluation Harness," version v0.4.3. Zenodo.
+    https://doi.org/10.5281/zenodo.12608602
   - >-
     OWASP Foundation (2025). "OWASP Top 10 for Large Language Model
     Applications — LLM05:2025 Improper Output Handling."
