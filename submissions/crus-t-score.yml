@@ -7,38 +7,26 @@ schema_version: "1.0"
 name: "CRUS-T score — a tier-gated runtime reliability score for generative and agentic AI"
 
 applied_definition: |
-  CRUS-T is a normalized, programmatically computable runtime reliability score for
-  generative and agentic AI. It scores a capability, or a single execution trajectory,
-  on four dimensions — **C**onsistency, **R**obustness, **U**ncertainty awareness, and
-  **S**afety — each built from three auditable sub-metrics computed from logged
-  execution artefacts. Every sub-metric is normalized to $[0,1]$, oriented so higher is
-  better.
+  CRUS-T is a normalized runtime reliability score for generative and agentic AI. It
+  scores a capability, or a single execution trajectory, on four axes — each computed
+  from logged execution artefacts and normalized to the [0,1] interval, higher being
+  better:
 
-  Each dimension aggregates its sub-metrics with a collapse-sensitive weighted geometric
-  mean with an $\varepsilon$-floor:
-  $$ G(\mathbf{m};\mathbf{w}) = \exp\!\left(\sum_i w_i \ln \max(m_i, \varepsilon)\right),\qquad \sum_i w_i = 1 . $$
+  - Consistency: stability of outputs under resampling and meaning-preserving perturbation.
+  - Robustness: retention of task quality under distribution shift, noise, and adversarial pressure.
+  - Uncertainty awareness: whether stated confidence tracks actual accuracy.
+  - Safety: factual groundedness against cited sources, policy conformance, and only authorized side effects.
 
-  Consistency uses self-consistency agreement across samples, paraphrase/perturbation
-  invariance, and numeric/structural stability. Robustness uses a performance-retention
-  ratio under distribution shift, a severity-weighted adversarial-resistance rate, and a
-  graded-degradation area. Uncertainty awareness uses $1-\mathrm{ECE}$ (expected
-  calibration error), abstention quality, and selective-prediction quality
-  ($1-\mathrm{AURC}/\mathrm{AURC}_{\max}$). Safety combines claim-level groundedness
-  (natural-language-inference entailment against cited sources), a severity-weighted
-  policy-conformance rate, and side-effect authorization.
+  Each axis is gated against a threshold that rises with the capability's assigned risk
+  tier, rather than collapsed into a single composite. Safety carries a non-negotiable
+  hard gate: a single critical policy violation forces failure regardless of the other
+  scores, so a catastrophic failure can never be averaged away. The runtime response
+  follows directly — continue (all axes clear the tier's threshold), escalate (an axis
+  slips, triggering human review), or contain (an axis is breached, or a critical safety
+  violation occurs, forcing a safe mode).
 
-  Safety carries a discontinuous hard gate: a single critical policy violation sets the
-  governed safety score to zero regardless of the continuous score, so a catastrophic
-  failure can never be averaged away:
-  $$ S = S_{\text{cont}} \cdot \mathbb{1}[\text{no critical violation observed}] . $$
-
-  Governance gates per axis against a tier-specific threshold vector rather than on the
-  scalar composite, and — for a regulatory-grade decision — on a bootstrap lower
-  confidence bound of each dimension instead of the point estimate. The runtime response
-  is continue / escalate / contain, according to which axis, if any, falls below its
-  threshold. All weights, tolerances, and thresholds are governance parameters —
-  versioned and subject to challenge — not statistical defaults tuned to a desired
-  outcome.
+  Full construction — sub-metric definitions, the aggregation rule, and the statistical
+  gating criterion — is given in the reference paper and the linked implementation.
 
 submitter_organizations:
   - Independent (Satyaki Ghosh Dastidar)
@@ -49,7 +37,6 @@ contact_email: satyaki.dastidar@gmail.com
 ai_rmf_characteristics:
   - Valid & Reliable
   - Safe
-  - Secure & Resilient
   - Accountable & Transparent
 
 primary_tevv_application:
@@ -75,24 +62,29 @@ usage_details: |
   AI capability still meets the reliability envelope its design-time risk tier assumes —
   and for turning that judgement into an automated continue / escalate / contain decision
   per execution trajectory. The per-axis construction is diagnostic: it identifies which
-  reliability dimension (e.g. a low Uncertainty-awareness score signalling confident
+  reliability axis (e.g. a low Uncertainty-awareness score signalling confident
   hallucination) is responsible for a failure, rather than reporting only a single
   composite number. Designed for regulated settings (e.g. financial services) where a
   runtime control must be auditable and defensible to an examiner, but the construction
   is domain-agnostic.
 
+  Scope: this entry covers the runtime reliability score only. The risk-tiering scheme
+  that sets each axis threshold (the IDEA lifecycle and five-dimension tiering method in
+  the reference paper) is a separate design-time component and is out of scope here; the
+  tier thresholds are supplied to the score as governance parameters.
+
 known_failure_modes: |
   (1) Evaluation-set representativeness: every score is only as valid as the evaluation
   set is representative of the capability's true operating distribution; sampling bias is
   the dominant source of measurement risk. (2) Dependency on learned verification
-  components: groundedness (S1) and semantic similarity (C1/C2) rely on an entailment or
+  components: groundedness and semantic-similarity sub-metrics rely on an entailment or
   embedding model that must itself be validated and governed on its own precision/recall,
   or the hard gate inherits its blind spots. (3) Parameter gaming: weights, tolerances,
-  and thresholds are governance parameters and can be tuned until a report passes —
-  the framework surfaces this as a versioned change but cannot prevent it by
-  construction. (4) Ground-truth needs: abstention quality (U2) and selective-prediction
-  quality (U3) require knowing which cases would have been answered incorrectly, which is
-  not directly computable from production traffic and is proxied at runtime.
+  and thresholds are governance parameters and can be tuned until a report passes — the
+  approach surfaces this as a versioned change but cannot prevent it by construction.
+  (4) Ground-truth needs: abstention quality and selective-prediction quality require
+  knowing which cases would have been answered incorrectly, which is not directly
+  computable from production traffic and is proxied at runtime.
 
 modality:
   - text
@@ -134,10 +126,10 @@ related_metrics:
 
 computational_requirements: >-
   Python 3.10+; the score itself has no required runtime dependencies. Sub-metrics that
-  need a learned entailment or embedding model (groundedness S1, semantic similarity
-  C1/C2) or a task-quality function (Robustness) require those to be supplied and governed
-  separately, and may need a GPU depending on the model chosen.
+  need a learned entailment or embedding model (groundedness, semantic similarity) or a
+  task-quality function (robustness) require those to be supplied and governed separately,
+  and may need a GPU depending on the model chosen.
 
 usage_rights: >-
   Reference implementation released under the MIT License. The metric definition is
-  free to use; the reference paper is a preprint.
+  free to use; the reference paper is a working paper.
