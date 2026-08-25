@@ -33,6 +33,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from urllib.parse import unquote
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -191,6 +192,80 @@ def run_case(filename: str, contents: str, verbose: bool) -> tuple[bool, str]:
     return True, "reported as a finding"
 
 
+# Names aimed at the annotation line in particular. Unescaped, each one either forges a
+# second annotation on its own line or adds a property the validator never set.
+ANNOTATION_NAMES = [
+    "x,line=NOTANUM.yml",  # a `line` property GitHub then fails to parse as a number
+    "x\n::error::FORGED.yml",  # a whole second annotation, attacker-worded
+    "a::b.yml",  # the delimiter itself, inside the value
+    "x%0Aalready-encoded.yml",  # a percent the encoder must escape before the newline
+]
+
+# `::error file=a%3Ab.yml,line=3::text`. Properties cannot contain a raw colon — the
+# encoder turns those into `%3A` — so everything up to the second `::` is the property
+# list, and matching it that way is what lets a forged one be spotted.
+ANNOTATION_RE = re.compile(r"^::(?:error|warning|notice)(?: (?P<props>[^:\n]*))?::")
+ANNOTATION_PROPERTIES = frozenset({"file", "line", "col", "endLine", "endColumn", "title"})
+NUMERIC_PROPERTIES = frozenset({"line", "col", "endLine", "endColumn"})
+
+
+def check_annotations() -> list[str]:
+    """`emit_annotations`, which none of the cases above reach.
+
+    An annotation is the one place a finding is written into a line format carrying its
+    own delimiters, and `emit_annotations` returns early unless GITHUB_ACTIONS is set.
+    Running the corpus by hand therefore never reached it, and `run_case` now removes
+    that variable on purpose — so without this, the escaping in `escape_property` is
+    guarded by nothing at all. Here the same kind of hostile name meets annotations
+    deliberately switched on, and the line has to parse back into exactly the properties
+    the validator meant to send.
+    """
+    failures = []
+    for filename in ANNOTATION_NAMES:
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            (root / "submissions").mkdir()
+            try:
+                (root / "submissions" / filename).write_text(VALID, encoding="utf-8")
+            except OSError:
+                continue  # the filesystem refused the name; not reachable here either
+            result = subprocess.run(
+                [sys.executable, str(VALIDATOR), "inspect", "--files",
+                 f"submissions/{filename}", "--stage-dir", str(root / "stage")],
+                cwd=root, capture_output=True, text=True, timeout=120,
+                env={**CASE_ENV, "GITHUB_ACTIONS": "true"},
+            )  # fmt: skip
+        output = result.stdout + result.stderr
+        shown = filename.replace("\n", "\\n")
+
+        if "Traceback (most recent call last)" in output:
+            failures.append(f"{shown}: a traceback once annotations are on")
+            continue
+
+        # One finding is one line. A second means the name broke out of the first.
+        emitted = [line for line in output.splitlines() if line.startswith("::")]
+        if len(emitted) != 1:
+            failures.append(f"{shown}: {len(emitted)} annotation lines, expected 1")
+            continue
+
+        match = ANNOTATION_RE.match(emitted[0])
+        if not match:
+            failures.append(f"{shown}: annotation did not parse: {emitted[0][:60]}")
+            continue
+        for pair in filter(None, (match["props"] or "").split(",")):
+            key, _, value = pair.partition("=")
+            if key not in ANNOTATION_PROPERTIES:
+                failures.append(f"{shown}: forged property {key!r}")
+            elif key in NUMERIC_PROPERTIES and not value.isdigit():
+                failures.append(f"{shown}: property {key}={value!r} is not a number")
+            elif key == "file" and unquote(value) != f"submissions/{filename}":
+                # Counting lines cannot catch a `%` left unescaped: `%0A` survives our
+                # own output intact and only becomes a newline when GitHub decodes it.
+                # Decoding it here is reading the line the way GitHub will.
+                failures.append(f"{shown}: file= decodes to {unquote(value)!r}")
+    return failures
+
+
 def check_static() -> list[str]:
     """Pyflakes over the scripts — the class of bug testing here cannot reach.
 
@@ -249,6 +324,7 @@ def main() -> int:
     skipped = []
     for label, failures in [
         ("Markdown encoder", check_code_helper()),
+        ("annotation escaping", check_annotations()),
         ("undefined names (ruff --select F)", check_static()),
     ]:
         # A check that could not run is not a check that passed. Printing PASS for it
