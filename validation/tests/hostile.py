@@ -155,9 +155,12 @@ def run_case(filename: str, contents: str, verbose: bool) -> tuple[bool, str]:
         result = subprocess.run(
             [sys.executable, str(VALIDATOR), "inspect", "--files",
              f"submissions/{filename}", "--stage-dir", str(root / "stage")],
-            cwd=root, capture_output=True, text=True, timeout=120, env=CASE_ENV,
+            cwd=root, capture_output=True, timeout=120, env=CASE_ENV,
         )  # fmt: skip
-        output = result.stdout + result.stderr
+        # Decoded here rather than by text=True: explicit decoding with
+        # errors="replace" cannot raise UnicodeDecodeError, which a locale-dependent
+        # decode can.
+        output = (result.stdout + result.stderr).decode("utf-8", "replace")
         code = result.returncode
         # A well-formed file with hostile *content* is inspect's pass and the schema
         # step's problem. Running only half the pipeline would assert the wrong layer.
@@ -170,11 +173,10 @@ def run_case(filename: str, contents: str, verbose: bool) -> tuple[bool, str]:
                     [SCHEMA_STEP, "--schemafile", schema, target],
                     cwd=root / "stage",
                     capture_output=True,
-                    text=True,
                     timeout=120,
                     env=CASE_ENV,
                 )
-                output += schema_run.stdout + schema_run.stderr
+                output += (schema_run.stdout + schema_run.stderr).decode("utf-8", "replace")
                 code = schema_run.returncode
     if verbose:
         print("    " + output.replace("\n", "\n    ")[:900])

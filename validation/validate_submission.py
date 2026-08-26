@@ -244,10 +244,22 @@ def render_report(report: Report) -> str:
     return "\n".join(lines) + "\n"
 
 
+def console_safe(text: str) -> str:
+    """Substitute what the output stream cannot encode, rather than raising.
+
+    Every report carries an emoji status marker, and printing it raised
+    UnicodeEncodeError on any stream whose encoding is not UTF-8: what Windows
+    falls back to whenever stdout is not a console, and what LC_ALL=C gives on
+    Linux. It failed on the passing path as much as the failing one.
+    """
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    return text.encode(encoding, "replace").decode(encoding, "replace")
+
+
 def finish(report: Report) -> int:
     emit_annotations(report)
     markdown = render_report(report)
-    print(markdown)
+    print(console_safe(markdown))
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with Path(summary_path).open("a", encoding="utf-8") as handle:
