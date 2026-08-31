@@ -277,10 +277,14 @@ def plural(count: int, noun: str) -> str:
 
 
 def git(*args: str) -> str:
-    result = subprocess.run(["git", *args], capture_output=True, text=True)
+    # Decoded here rather than by text=True, which would use the locale encoding.
+    # `changed_files` passes -z, which turns off git's path quoting, so a non-ASCII
+    # path arrives as raw UTF-8 bytes. Tree.read already reads stderr this way.
+    result = subprocess.run(["git", *args], capture_output=True)
     if result.returncode != 0:
-        raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
-    return result.stdout
+        stderr = result.stderr.decode("utf-8", "replace").strip()
+        raise RuntimeError(f"git {' '.join(args)} failed: {stderr}")
+    return result.stdout.decode("utf-8", "replace")
 
 
 class Tree:
