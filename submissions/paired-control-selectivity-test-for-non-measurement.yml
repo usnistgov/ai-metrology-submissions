@@ -64,13 +64,13 @@ known_failure_modes: |
 
 references:
   - >-
+    Abak, A. T. (2026). "The Measurement Axioms: A Doctrine and Specification
+    for Governance Verdict Validity," version 1.0.0. Zenodo.
+    https://doi.org/10.5281/zenodo.21763431
+  - >-
     Beer, I., Ben-David, S., Eisner, C., & Rodeh, Y. (2001). "Efficient Detection
     of Vacuity in Temporal Model Checking." Formal Methods in System Design,
     18(2), 141-163. https://doi.org/10.1023/A:1008779610539
-  - >-
-    Liu, H., Kuo, F.-C., Towey, D., & Chen, T. Y. (2014). "How Effectively Does
-    Metamorphic Testing Alleviate the Oracle Problem?" IEEE Transactions on
-    Software Engineering, 40(1), 4-22. https://doi.org/10.1109/TSE.2013.46
 
 implementation_resources:
   - >-
