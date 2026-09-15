@@ -38,15 +38,23 @@ model_specificity: model agnostic
 domain_specificity: domain agnostic
 
 usage_details: |
-  Apply the method to AI TEVV evaluators, governance verifiers, gates, monitors, or other software
-  components that emit a measurement status. Construct each control-degenerate
-  pair from the semantics of the measurement being tested, keep configuration
-  and surrounding conditions matched between the two executions, and report
-  per-case outcomes together with coverage. The method is intended to detect
-  vacuous positive assurance caused by empty inputs, missing baselines,
-  unreadable sources, empty denominators, or comparable non-measurement
-  conditions. It tests the selectivity of the measurement path; it does not by
-  itself establish that the underlying AI system is safe, correct, or compliant.
+  Apply the method to AI TEVV evaluators, governance verifiers, gates, monitors,
+  or other software components that emit a measurement status. Construct each
+  control-degenerate pair from the semantics of the measurement being tested,
+  keep configuration and surrounding conditions matched between the two
+  executions, and report per-case outcomes together with coverage.
+
+  The method is intended to detect vacuous positive assurance caused by empty
+  inputs, missing baselines, unreadable sources, empty denominators, or
+  comparable non-measurement conditions. It tests the selectivity of the
+  measurement path; it does not by itself establish that the underlying AI
+  system is safe, correct, or compliant.
+
+  The exact Paired-Control Selectivity Test for Non-Measurement submitted here
+  is newly proposed and currently primarily submitter-grounded. Its primary
+  methodological specification is The Measurement Axioms v1.0.0, specifically
+  MA-6.1 (paired selectivity). No independent validation, peer review of this
+  exact method, standardization, or external adoption is claimed.
 
 known_failure_modes: |
   1. Pair validity: if the control is not genuinely measurable, or the degenerate
@@ -61,6 +69,9 @@ known_failure_modes: |
   4. State and nondeterminism: shared mutable state, order effects, or unmatched
      execution conditions can invalidate the comparison unless the two sides of
      each pair are isolated appropriately.
+  5. Evidence maturity: this exact method has not yet been independently
+     validated. The peer-reviewed literature cited below supports a constituent
+     methodological idea rather than validating this exact AI TEVV procedure.
 
 references:
   - >-
@@ -68,15 +79,16 @@ references:
     for Governance Verdict Validity," version 1.0.0. Zenodo.
     https://doi.org/10.5281/zenodo.21763431
   - >-
-    Beer, I., Ben-David, S., Eisner, C., & Rodeh, Y. (2001). "Efficient Detection
-    of Vacuity in Temporal Model Checking." Formal Methods in System Design,
-    18(2), 141-163. https://doi.org/10.1023/A:1008779610539
+    Liu, H., Kuo, F.-C., Towey, D., & Chen, T. Y. (2014). "How Effectively Does
+    Metamorphic Testing Alleviate the Oracle Problem?" IEEE Transactions on
+    Software Engineering, 40(1), 4-22.
+    https://doi.org/10.1109/TSE.2013.46
 
 implementation_resources:
   - >-
-    https://github.com/halvrenofviryel/measurement-axioms/blob/d009fcb97c6ca03e962fb9c5f8ea6e21b619a1f5/spec/v1.0/conformance/degenerate.py
+    https://doi.org/10.5281/zenodo.21763431
   - >-
-    https://github.com/halvrenofviryel/measurement-axioms/blob/d009fcb97c6ca03e962fb9c5f8ea6e21b619a1f5/tests/test_measurement_axioms_conformance.py
+    https://github.com/halvrenofviryel/measurement-axioms/tree/d009fcb97c6ca03e962fb9c5f8ea6e21b619a1f5/spec/v1.0/conformance
 
 computational_requirements: >-
   CPU-only. The reference implementation is a small Python probe and requires no
