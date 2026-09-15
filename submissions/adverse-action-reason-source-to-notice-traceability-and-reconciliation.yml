@@ -1,0 +1,136 @@
+schema_version: "1.0"
+
+name: Adverse-Action Reason Source-to-Notice Traceability and Reconciliation
+
+applied_definition: |
+  A qualitative, record-level consistency method for credit decision systems
+  that use AI or machine learning, using rule-based conformance checking
+  principles. For each recorded declined decision, it compares the declared,
+  versioned decision components, adverse source drivers, reason-selection
+  convention, mappings, recorded reason outputs, and rendered notice segments.
+  Input validation errors prevent reconciliation; executed checks report named
+  exceptions, counts, stage status, and record-level details rather than a
+  weighted composite score. A clean result requires successful validation,
+  execution of all applicable source-to-reason and rendered-notice checks, and
+  zero exceptions. It establishes consistency with the supplied records and
+  declared rules only, without establishing truthfulness, causal faithfulness,
+  legal sufficiency, or recipient understanding.
+
+submitter_organizations:
+  - Independent Researcher
+
+contact_email: n.isaacahor@gmail.com
+
+ai_rmf_characteristics:
+  - Accountable & Transparent
+  - Explainable & Interpretable
+
+primary_tevv_application:
+  - Interpretability & Explanation Evaluation
+
+ai_lifecycle_stages:
+  - Build
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - system
+
+model_specificity: model agnostic
+
+domain_specificity: domain specific — credit underwriting and adverse-action reason records
+
+usage_details: |
+  Apply the method during predeployment review, material-change review, and
+  periodic monitoring when a credit decision system produces reason outputs and
+  a separate notice-rendering process. The evaluator supplies versioned records
+  for the decision path, source drivers, mappings, policies, selection methods,
+  output reasons, templates, and rendered reason segments.
+
+  The method checks six invariants:
+
+  1. the final decision component and, for a combined decision, its failed source
+     components are recorded;
+  2. each output driver is an adverse contributor in an eligible recorded source
+     component, and its rank matches deterministic ranking under the declared
+     convention;
+  3. mapped principal source drivers within the predeclared review limit are not
+     omitted;
+  4. each output pins the mapping identifier, version, and effective date;
+     reason-selection and notice-template identifiers and versions; and the
+     underwriting policy version recorded for the decision;
+  5. the disclosed reason text reconciles to the controlled mapped text after
+     case and whitespace normalization; and
+  6. each declined decision with reason outputs has one rendered notice, each
+     output appears exactly once in that notice, and each visible segment
+     reconciles to its output by identifier, code, and normalized text, with the
+     notice using the declared template identifier and version.
+
+  In the reference implementation, duplicate notices for a decision, duplicate
+  reason-output identifiers within a notice, and invalid record links fail input
+  validation before reconciliation. Missing optional fidelity inputs can instead
+  leave a stage marked not run. Neither outcome is clean. Benchmark success
+  means the expected seeded failures were observed; it is not a clean-result
+  indicator.
+
+  Carmona, van Dongen, and Weidlich (2022), Section 2.2, provide the methodological
+  basis: check recorded behavior against declared constraints and identify
+  deviations, including cardinality violations. Here, the linked records for
+  each decision are the observations, and invariants 1-6 are the declared
+  constraints. The method adapts that rule-checking principle to record
+  consistency; it does not perform event-log alignment or token replay. The
+  credit-specific invariants and version/text comparisons are this method's
+  operational choices, not checks prescribed or validated by that chapter.
+
+  Regulation B's Official Interpretations supply the domain rationale:
+  9(b)(2)-2 and -4 support the actual-factor and principal-reason checks in
+  invariants 2-3; -7 supports the failed-component checks in invariants 1-2;
+  and -5 motivates documenting the selected convention rather than assuming a
+  universal reason-selection method. It does not establish that the synthetic
+  contribution ranking is an acceptable method for a creditor. The version
+  controls and notice reconciliation in invariants 4-6 make these record
+  comparisons reproducible; the regulation does not prescribe their identifiers
+  or equality tests. Use alongside explanation-method evaluation and human
+  review of recipient-facing language.
+
+known_failure_modes: |
+  Internally consistent but false, incomplete, or post hoc records can pass. A
+  deterministic ranking can reproduce the declared convention while the
+  convention itself is unsuitable. Text normalization detects controlled-text
+  drift but not semantic ambiguity, readability, or recipient understanding.
+  Missing production context, human review, or representative field data limits
+  external validity. The reference implementation is an individual open-source
+  project using synthetic records; no consumer-finance organization is
+  documented as having adopted the submitted approach.
+
+modality:
+  - structured data
+  - text
+
+references:
+  - >-
+    Carmona, J., van Dongen, B., and Weidlich, M. (2022). Conformance Checking:
+    Foundations, Milestones and Challenges. In Process Mining Handbook,
+    Lecture Notes in Business Information Processing 448, pp. 155-190,
+    especially Section 2.2 (Rule Checking). Springer.
+    https://doi.org/10.1007/978-3-031-08848-3_5
+  - >-
+    Consumer Financial Protection Bureau. Regulation B, 12 CFR 1002.9(b)(2),
+    with Official Interpretations 9(b)(2)-2, -4, -5, and -7.
+    https://www.consumerfinance.gov/rules-policy/regulations/1002/9/
+    https://www.consumerfinance.gov/rules-policy/regulations/1002/interp-9/
+
+implementation_resources:
+  - https://github.com/IsaacAhor/small-business-credit-model-governance/tree/v0.12.0/docs/adverse-action-reason-run-kit
+  - https://github.com/IsaacAhor/small-business-credit-model-governance/blob/v0.12.0/scripts/run_adverse_action_reason_benchmark.py
+  - https://github.com/IsaacAhor/small-business-credit-model-governance/tree/v0.12.0/data/synthetic/adverse-action-reason-benchmark
+  - https://github.com/IsaacAhor/small-business-credit-model-governance/blob/v0.12.0/src/credit_gov/monitoring.py
+  - https://github.com/IsaacAhor/small-business-credit-model-governance/blob/v0.12.0/src/credit_gov/schemas/validators.py
+
+related_metrics:
+  - Explanation faithfulness under the selected explanation method
+  - Human evaluation of reason clarity and meaningfulness
+
+computational_requirements: Python 3.10 or newer; no GPU required for the synthetic reference implementation
+
+usage_rights: Apache License 2.0
