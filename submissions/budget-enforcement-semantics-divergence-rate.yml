@@ -1,0 +1,147 @@
+schema_version: "1.0"
+
+# --- Section 1: Identification and attribution ---
+name: Budget Enforcement Semantics Divergence Rate Across AI Agent Frameworks
+
+applied_definition: |
+  The fraction of standard workload cases for which independent AI agent
+  frameworks disagree on the reported budget consumption of the same
+  underlying work.
+
+  For a workload $w$ with declared budget policy $B$ and $K$ agent
+  frameworks $\{F_1, ..., F_K\}$ each capable of executing $w$ under $B$,
+  each framework returns a consumption record
+  $C(F_j, w, B) = (t_j, d_j, r_j)$ where $t_j$ is total input+output
+  tokens consumed, $d_j$ is total spend in USD computed against a
+  fixed price table supplied with the measurement, and $r_j$ is an
+  ordered record of resource-event counts (tool-call count, retry
+  count, streaming chunks). Frameworks that do not natively report a
+  dimension, or that route to a model absent from the supplied price
+  table, emit the reserved value $\bot$ for that position; equality
+  is defined element-wise with $\bot = \bot$ and $\bot \neq v$ for
+  any concrete value $v$. The ensemble divergence rate over $N$
+  workloads ($N \geq 30$ recommended) is
+
+  $$ D = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}\left[\exists\, F_j, F_k\ :\ C(F_j, w_i, B) \neq C(F_k, w_i, B)\right] $$
+
+  and the pairwise divergence rate for an unordered framework pair
+  $\{F_j, F_k\}$ is
+
+  $$ D_{jk} = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}\left[C(F_j, w_i, B) \neq C(F_k, w_i, B)\right] $$
+
+  The ensemble rate $D$ is reported per budget-policy form; the
+  pairwise rates $D_{jk}$ are reported per unordered framework pair.
+  Recommended confidence interval: Wilson score at $\alpha = 0.05$;
+  cluster-adjusted Wilson where workloads share a generator.
+
+submitter_organizations:
+  - Elankumaran Srinivasan (independent researcher, ORCID 0009-0001-2643-0389)
+
+contact_email: 5340827+elang2@users.noreply.github.com
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Accountable & Transparent
+  - Valid & Reliable
+
+primary_tevv_application:
+  - Privacy & Security Evaluation
+
+ai_lifecycle_stages:
+  - Build
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - agent
+  - system
+
+model_specificity: model agnostic
+
+domain_specificity: domain agnostic
+
+usage_details: |
+  Applied by defining a standardised workload plus declared budget policy,
+  executing it across each available agent framework, and comparing the
+  reported consumption values pairwise.
+
+  Concrete application: an 11-framework differential harness (see
+  implementation resources) applied the same tool-calling workload under
+  identical budget constraints, so $K = 11$. Eight frameworks were
+  executed directly; Google ADK and Anthropic were assessed by source
+  inspection, and Swarm was executed at 0.1.0 though archived upstream.
+  Frameworks disagreed on what to count (tokens vs. dollars vs. both),
+  when to trigger enforcement, and how to account for framework-external
+  tool calls. Agno reports no enforcement of a declared budget at all,
+  which under this definition is itself a divergence rather than a missing
+  measurement.
+
+known_failure_modes: |
+  Sensitive to workload construction: workloads that do not exercise the
+  edge cases of budget-accounting (framework-external tool calls, mixed
+  token/dollar policies, streaming responses, mid-execution cancellation)
+  will report artificially low rates.
+
+  The aggregate rate does not attribute divergences to specific accounting
+  rules or to a specific dimension of the $C()$ tuple. Reporting the
+  per-dimension divergence rate (tokens-only, spend-only, resource-events-only)
+  alongside the aggregate rate is recommended.
+
+  Stratified reporting of $D$ is recommended in two strata: (a) shared-dimension
+  disagreement (both frameworks report the same dimension with different values)
+  and (b) coverage non-overlap ($\bot$ on one side, concrete on the other). The
+  unstratified rate mixes "the frameworks disagree on the accounting" with "the
+  frameworks don't report the same accounting"; separating them via the two
+  strata clarifies which failure mode a measurement is exposing.
+
+
+  A framework that enforces no declared budget diverges from every
+  enforcing framework on every workload, so including one saturates $D$ at
+  1.0 irrespective of how the remaining implementations behave. Report the
+  rate with non-enforcing frameworks excluded, alongside their count, and
+  state the composition of $K$ for any reported rate. In the reference
+  survey Agno is the non-enforcing case.
+modality:
+  - text
+  - structured data
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  - >-
+    Srinivasan, E. (2026). Budget Enforcement Semantics Diverge Across AI
+    Agent Frameworks: An Empirical Study. Zenodo.
+    https://doi.org/10.5281/zenodo.22119569
+  - >-
+    McKeeman, W. M. (1998). Differential Testing for Software. Digital
+    Technical Journal, 10(1), 100-107.
+  - >-
+    Ye, G., Tang, Z., Tan, S. H., Huang, S., Fang, D., Sun, X., Bian, L.,
+    Wang, H., and Wang, Z. (2021). Automated conformance testing for
+    JavaScript engines via deep compiler fuzzing. Proceedings of the 42nd
+    ACM SIGPLAN International Conference on Programming Language Design
+    and Implementation (PLDI 2021), 435-450.
+    https://doi.org/10.1145/3453483.3454054
+
+implementation_resources:
+  - >-
+    Differential harness (11 frameworks, 8 executed directly; v0.5.0):
+    https://github.com/elang2/agent-budget-semantics
+  - >-
+    Companion software release (Zenodo):
+    https://doi.org/10.5281/zenodo.22605741
+
+related_metrics:
+  - Per-dimension divergence rate (tokens, spend, resource-events)
+  - Cross-SDK Wire-Level Divergence Rate (sibling metric; measures the wire layer under the same K-way construction)
+  - >-
+    Agent Token Budget Utilization (per-run ratio against a single
+    framework's own cap; supplies the tokens dimension under a shared
+    budget policy)
+
+computational_requirements: >-
+  Low. Python 3.11+ with four runtime dependencies, plus one optional extra
+  per framework compared. A bundled Dockerfile is available. No GPU and no
+  LLM API keys are required; a deterministic mock LLM serves as ground
+  truth.
+
+usage_rights: MIT
