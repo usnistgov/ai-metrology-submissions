@@ -1,0 +1,115 @@
+schema_version: "1.0"
+
+# --- Section 1: Identification and attribution ---
+name: Incomplete-Cross-Section Leakage Screen (Arrival-Order Susceptibility)
+applied_definition: |
+  For a cross-sectional signal computed on a panel in which units report on staggered dates
+  within a reporting cycle, the screen measures ρ̂: the association between a unit's
+  arrival order within the cycle and the value of the signal. ρ̂ is tested against a
+  permutation noise floor obtained by shuffling arrival order within cycle, using 200
+  permutations. A signal-cycle is flagged when
+
+  $$|\hat\rho| > 0.10$$
+
+  Detection power is verified with planted-truth positive controls: synthetic panels built
+  with a known arrival-selection effect, used to confirm the screen recovers a planted effect
+  rather than reacting only to noise. Output is a versioned results record (the
+  `pit-screen-results` schema, version 1.0; see `docs/results-schema.md` in the reference
+  implementation) that other tools may adopt as a common result format.
+submitter_organizations:
+  - Max Well Apex LLC
+contact_email: maxwellapexlab@proton.me
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Valid & Reliable
+ai_lifecycle_stages:
+  - Collect & Process Data
+  - Operate & Monitor
+object_of_measurement:
+  - data
+model_specificity: model agnostic
+domain_specificity: domain specific -- Finance, Healthcare
+usage_details: >-
+  Applies to any cross-sectional signal computed on a panel where reporting units arrive on
+  staggered dates within a cycle, including regulatory-filings panels, adverse-event-report
+  panels, and point-in-time joins served from a feature store. A public audit registry
+  applies the screen to six datasets: Open Source Asset Pricing (Chen and Zimmermann),
+  benign with |ρ̂| <= 0.036 across 18 predictor-cycles; JKP Global Factor Data, benign
+  by construction; an SEC EDGAR as-filed fundamentals panel on observed filing dates, where 7
+  of 14 signals were flagged across 28 of 84 signal-cycles, with ROA clean at 0 of 6; an SEC
+  Form 13F holdings panel; a Feast feature-store point-in-time join; and FDA FAERS quarterly
+  extracts (2015q1 to 2024q4, 19,952 drug-quarters, 1,125 ingredients, 2,857,619 reports),
+  where the serious_share signal was flagged in 31 of 31 screened quarters, mean ρ̂
+  +0.1987 (max 0.3205) against a noise floor of 0.0507, while a term-concentration signal on
+  the same panel was benign in 0 of 31 quarters and permutation of arrival order collapsed
+  every FAERS reading to at most 0.0268.
+known_failure_modes: >-
+  A signal that is arrival-order-invariant by construction, such as the term-concentration
+  signal in the FAERS audit (benign in 0 of 31 quarters), passes the screen even when other
+  signals on the same panel are flagged, so a clean reading certifies only the tested
+  signal-cycle, not the whole panel. The permutation noise floor is sensitive to cycle size;
+  small reporting cycles reduce the power to detect a real arrival-selection effect, which is
+  why planted-truth positive controls (synthetic panels with a known arrival-selection
+  effect) are used to verify detection power rather than relying on the noise floor alone.
+modality:
+  - structured data
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  # Primary methodological specification for this screen. This is a newly proposed
+  # method; to the submitter's knowledge no independent or peer-reviewed reference
+  # describes this specific screen. The three figshare items below are preprints by
+  # the submitter and are not peer reviewed. Independent adjacent literature, which
+  # addresses the same statistical structure but estimates the true value rather than
+  # flagging a cross-section, is listed after them.
+  - >-
+    PRIMARY METHODOLOGICAL SPECIFICATION. Wu, K.-T. (2026), "Measuring
+    Incomplete-Cross-Section Leakage: A Matched Placebo, a Susceptibility Screen, and
+    Evidence from Taiwan and US As-Filed Data that the Channel Is Benign and
+    Correctable". Defines and measures incomplete-cross-section leakage, including the
+    arrival-order association statistic, the permutation noise floor and the flagging
+    threshold used by this screen; ships 13 analysis scripts. Preprint by the
+    submitter, not peer reviewed.
+    https://doi.org/10.6084/m9.figshare.33061955
+  - >-
+    Wu, K.-T. (2026), "Correct-by-Construction Factor Computation: A Verifiably
+    Point-in-Time Engine for Tradeable Signals". Preprint by the submitter, not peer
+    reviewed.
+    https://doi.org/10.6084/m9.figshare.32952482
+  - >-
+    Wu, K.-T. (2026), "Susceptibility-Graded Release Control: Preventing
+    Incomplete-Cross-Section Leakage in Financial Machine-Learning Pipelines without a
+    Blanket Timeliness Penalty". Preprint by the submitter, not peer reviewed.
+    https://doi.org/10.6084/m9.figshare.33158615
+  - >-
+    Independent, peer reviewed. Rubin, D. B. (1976), "Inference and missing data",
+    Biometrika 63(3). General framework for ignorability; this screen operationalises a
+    test of whether a cross-section violates that assumption.
+    https://doi.org/10.1093/biomet/63.3.581
+  - >-
+    Independent, peer reviewed. Hoehle, M. and an der Heiden, M. (2014), "Bayesian
+    nowcasting during the STEC O104:H4 outbreak in Germany, 2011", Biometrics 70(4).
+    Same statistical structure of a right-truncated, reporting-delayed cross-section,
+    addressed by estimation rather than by screening.
+    https://doi.org/10.1111/biom.12194
+  - >-
+    Independent, peer reviewed. Harton, J., Mitra, N. and Hubbard, R. A. (2022),
+    "Informative presence bias in analyses of electronic health records-derived data: a
+    cautionary note", Journal of the American Medical Informatics Association 29(7).
+    Established term for systematic differences between observed and not-yet-observed
+    units.
+    https://doi.org/10.1093/jamia/ocac050
+  - >-
+    Independent, peer reviewed. Kaufman, S., Rosset, S., Perlich, C. and Stitelman, O.
+    (2012), "Leakage in data mining: formulation, detection, and avoidance", ACM
+    Transactions on Knowledge Discovery from Data 6(4). General leakage taxonomy; its
+    subtypes concern features or labels crossing a time boundary, not selective
+    incompleteness of the cross-section itself.
+    https://doi.org/10.1145/2382577.2382579
+implementation_resources:
+  - https://github.com/MaxWellApexLab/pit-release-gate
+  - https://pypi.org/project/pit-release-gate/
+  - https://github.com/MaxWellApexLab/pit-release-gate/blob/master/docs/results-schema.md
+  - https://github.com/MaxWellApexLab/pit-audit-registry
+usage_rights: MIT License
