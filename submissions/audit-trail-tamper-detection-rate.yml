@@ -1,0 +1,141 @@
+schema_version: "1.0"
+
+# --- Section 1: Identification and attribution ---
+name: Audit-Trail Tamper-Detection Rate for AI Agent Tool Invocations
+
+applied_definition: |
+  For $M_c$ tampering attempts $\{a_1, ..., a_{M_c}\}$ in attack class
+  $c \in \{\text{edit, delete, reorder, equivocation-fork}\}$ applied
+  to a stream of audit records produced by an audit-trail system $A$,
+
+  $$ R_{\text{detect}}(A, c) = \frac{1}{M_c} \sum_{i=1}^{M_c} \mathbb{1}\left[V(A, a_i) = \text{detected}\right] $$
+
+  where $V(A, a_i)$ is the verifier's output on the tampered chain. The
+  four attack classes are: edit (a single field mutation in a record),
+  delete (removal of one record from the chain), reorder (swap of two
+  adjacent records without content mutation), and equivocation-fork
+  (signing a second suffix from an already-signed prefix so that two
+  divergent chains share a common committed head). The false-positive
+  companion rate $R_{\text{FP}}(A)$ is the fraction of untampered chains
+  the verifier flags as tampered. $R_{\text{detect}}$ is reported per
+  attack class $c$ and per chain-length window (measured in records,
+  with $M_c \geq 30$ recommended per class per window); $R_{\text{FP}}$
+  is reported per chain-length window only, since it is measured on
+  untampered chains and has no attack class. Recommended confidence
+  interval: Wilson score at $\alpha = 0.05$; cluster-adjusted Wilson
+  where attack instances within a class share a generator.
+
+submitter_organizations:
+  - Elankumaran Srinivasan (independent researcher, ORCID 0009-0001-2643-0389)
+
+contact_email: 5340827+elang2@users.noreply.github.com
+
+# --- Section 2: Context and limitations ---
+ai_rmf_characteristics:
+  - Accountable & Transparent
+  - Secure & Resilient
+  - Valid & Reliable
+
+primary_tevv_application:
+  - Privacy & Security Evaluation
+
+ai_lifecycle_stages:
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - system
+  - agent
+
+model_specificity: model agnostic
+
+domain_specificity: domain agnostic
+
+usage_details: |
+  Applied by generating a controlled workload, applying a curated set of
+  tampering attacks (edit, delete, reorder, equivocation-fork), and
+  running the verifier against the tampered chain.
+
+  Supports direct comparison across audit-trail architectures at fixed
+  attack corpus: hash-chained records authenticated by Ed25519 or by
+  HMAC-SHA256, with or without periodic on-chain anchoring. Comparable
+  axes are detection rate, false-positive rate, per-event verifier
+  latency, and per-event storage.
+
+  Reported per system under test, so the same attack classes can be
+  compared across independent audit-trail architectures.
+
+known_failure_modes: |
+  Detection rate against an incomplete attack corpus overestimates
+  real-world resilience. Attack corpora should include
+  semantic-equivalence tamperings (values that produce identical
+  canonical form across SDKs, per the companion Cross-SDK Wire-Level
+  Divergence Rate metric) as well as byte-level tamperings.
+
+  Does not measure resistance to agent-internal log fabrication, which
+  is a distinct threat model addressed by external audit gateways
+  rather than by the audit-trail system itself.
+
+modality:
+  - text
+  - structured data
+
+# --- Section 3: Provenance, tooling, and requirements ---
+references:
+  - >-
+    Bindschaedler, L., Botha, Q., and Siebenbrunner, C. (2026). Agent
+    Flight Recorder: Tamper-Evident Audit Trails with On-Chain Anchoring
+    for Long-Horizon Tool-Using Agents. To appear in the IEEE
+    International Conference on Blockchain Computing and Applications
+    (BCCA 2026). arXiv:2609.01931.
+    https://doi.org/10.48550/arXiv.2609.01931
+  - >-
+    Vijayakumar, B., Varadaraju, S. K., and Baskaran, L. B. (2026). TRACE:
+    Tamper-Resistant Accountability and Cryptographic Evidence for
+    Multi-Agent AI Systems. 2026 IEEE 12th Conference on Big Data Security
+    on Cloud (BigDataSecurity), 90-95.
+    https://doi.org/10.1109/bigdatasecurity69476.2026.00021
+  - >-
+    Srinivasan, E. (2026). Tamper-Evident Audit Trails for AI Agent Tool
+    Invocations: Design Pitfalls, Cross-Language Conformance, and a
+    Reference Implementation. Zenodo.
+    https://doi.org/10.5281/zenodo.22070036
+
+implementation_resources:
+  - >-
+    Independent replication resource, the Agent Flight Recorder evaluation
+    artifact, which injects the same four attack classes and reports
+    per-class detection rates across five configurations (eval/tamper.py,
+    eval/bench_rq3.py, artifacts/paper/reference/rq3.json), MIT licensed
+    and pinned at commit 28ddcde:
+    https://github.com/mpi-dsg/agent-flight-recorder/tree/28ddcde9c133bd10e9a500cc7e38e3d70d8baa86
+  - >-
+    mcp-audit-gateway (Ed25519 and HMAC-SHA256 signing, hash-chain and
+    checkpoint verification), pinned at v0.8.1:
+    https://github.com/elang2/mcp-audit-gateway/tree/v0.8.1
+    Released software (11 releases; v0.8.1; @mcp-audit-gateway/core, 0.8.0
+    on npm). The repository was created 2026-08-17 and is not yet widely
+    adopted, so it is cited as a reproduction path rather than as an
+    established tool. It supplies the audit-trail primitives the metric is
+    applied to; the four-class detection measurement itself is demonstrated
+    by the Agent Flight Recorder artifact above.
+  - >-
+    Cross-language conformance vectors (JS + Python parity, 46 cases),
+    pinned at v0.8.1:
+    https://github.com/elang2/mcp-audit-gateway/blob/v0.8.1/test/vectors/checkpoint.json
+    Exercised by the paired verifiers verify-checkpoint.mjs and
+    verify-checkpoint.py in the same directory, which each report 46 of 46
+    checks passing.
+
+related_metrics:
+  - Verifier per-event latency
+  - Bytes-per-event storage overhead
+  - Anchoring cost per 100K events
+  - Cross-SDK Wire-Level Divergence Rate (companion; supplies the semantic-equivalence tampering class)
+
+computational_requirements: >-
+  Verifier: single-core CPU sufficient for chain length under 1M events.
+  Signing/MAC throughput bounded by the underlying authentication
+  primitive (Ed25519 or HMAC-SHA256). No GPU required.
+
+usage_rights: MIT
