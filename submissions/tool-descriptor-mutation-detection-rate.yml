@@ -1,0 +1,125 @@
+schema_version: "1.0"
+
+name: Tool-Descriptor Mutation Detection Rate
+
+applied_definition: |
+  Fraction of tool-definition fields whose modification is detected by a client
+  that pins the definition, measured one field at a time.
+
+  For one tool and one client under test:
+
+  1. Serve a baseline `tools/list` response and let the client pin it.
+  2. Fix the field set F: every field of the tool definition except the one the
+     client uses as the pin's identity key. For MCP 2025-06-18, `name` is
+     normally the identity key, leaving F = {`_meta`, `annotations`,
+     `description`, `inputSchema`, `outputSchema`, `title`}.
+  3. For each field f in F, re-serve the identical listing with only f changed
+     to a semantically different value, and record whether the client reports a
+     mutation. `applied` counts the fields actually mutated; `detected` counts
+     those reported.
+  4. Required control: re-serve the baseline listing unchanged and confirm the
+     client reports nothing. If the control is flagged, the run is void. A
+     client that flags every re-listing scores 1.0 while detecting nothing.
+
+  $$ \mathrm{TDMDR} = \frac{\mathit{detected}}{\mathit{applied}} $$
+
+  Report three things together: the rate, the field set F used, and the
+  undetected fields by name. The rate alone is not interpretable without them.
+
+submitter_organizations:
+  - Independent contributor
+
+contact_email: 24365101+Santoshkumarpuppala@users.noreply.github.com
+
+ai_rmf_characteristics:
+  - Secure & Resilient
+  - Accountable & Transparent
+
+primary_tevv_application:
+  - Privacy & Security Evaluation
+
+ai_lifecycle_stages:
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - system
+
+model_specificity: model agnostic
+
+domain_specificity: domain agnostic
+
+modality:
+  - structured data
+
+usage_details: |
+  Applies to any client, proxy or guard that pins a tool definition on first
+  sight and compares later listings against the pin. It separates "pinning is
+  enabled" from "the pin covers the field an attacker would change": when a
+  digest is built from a subset of the definition, a flip in a field outside
+  that subset produces exactly the same output as a clean session.
+
+  Interpretation is per field, not per score. An implementation at 5/6 that
+  misses `annotations` is materially weaker than one at 5/6 that misses
+  `_meta`, because a `destructiveHint` flip changes a client's own approval
+  decision. Use the named undetected fields to decide; use the rate only to
+  compare runs over the same F.
+
+known_failure_modes: |
+  - The score depends entirely on which fields are in F. A narrow F inflates
+    it. F and its source must be published with the number.
+  - It measures detection, not prevention or response. A client that detects
+    every mutation and forwards the call anyway still scores 1.0.
+  - Without the required control the metric is trivially gameable: flag every
+    re-listing and score 1.0 on any F.
+  - One mutation per field is a floor, not a survey. A field can be partly
+    covered, for example a digest over a serialised object that is sensitive to
+    one key within it and not another.
+  - It says nothing about tool behaviour, only about the advertised definition.
+
+references:
+  - >-
+    Yue Jia and Mark Harman, "An Analysis and Survey of the Development of
+    Mutation Testing", IEEE Transactions on Software Engineering 37(5),
+    649-678, 2011. https://doi.org/10.1109/TSE.2010.62 — the mutation-score
+    method this metric applies to tool definitions rather than to program
+    source.
+  - >-
+    Model Context Protocol specification, version 2025-06-18, Server Features /
+    Tools, Data Types.
+    https://modelcontextprotocol.io/specification/2025-06-18/server/tools —
+    defines the tool definition being mutated, and states the trust assumption
+    the metric tests: "For trust & safety and security, clients MUST consider
+    tool annotations to be untrusted unless they come from trusted servers."
+
+implementation_resources:
+  - >-
+    PARTIAL EXAMPLE, not a full implementation of this metric.
+    coproduct-opensource/nucleus, crates/nucleus-mcp-guard/src/proxy.rs at
+    merge commit a7a2b0925e24b969f820e333c9e1028c5630b0fa (MIT). It shows the
+    per-field mechanism and the required control as executed tests, for two of
+    the six fields in F; it does not sweep F and does not compute the rate.
+    Tests: `a_flipped_destructive_hint_is_blocked_and_taints` (proxy.rs:595)
+    and `an_unchanged_annotated_listing_stays_clean` (proxy.rs:622); a second
+    pair at proxy.rs:533 and proxy.rs:553. The hashed triple is built at
+    proxy.rs:112-131, with the envelope field list at proxy.rs:125. Coverage at
+    this commit is `description` and `annotations.destructiveHint` only, so an
+    operator starting from this code must add the remaining four fields of F
+    and the detected/applied calculation. No released version contains it: the
+    latest release is v2.2.0 (2026-09-02) and this commit is dated 2026-09-04;
+    neither cited test name appears in the file at tag v2.2.0, while both
+    appear on the default branch. I am not aware of a released tool that runs
+    the full sweep.
+    https://github.com/coproduct-opensource/nucleus/blob/a7a2b0925e24b969f820e333c9e1028c5630b0fa/crates/nucleus-mcp-guard/src/proxy.rs
+  - >-
+    Model Context Protocol schema, version 2025-06-18, definitions.Tool — the
+    machine-readable field list that fixes F for MCP clients.
+    https://github.com/modelcontextprotocol/modelcontextprotocol/blob/2025-06-18/schema/2025-06-18/schema.json
+
+computational_requirements: >-
+  Negligible. One `tools/list` round trip per mutated field plus one for the
+  control; no model inference, no GPU.
+
+usage_rights: >-
+  No restrictions on the metric definition. The cited implementation
+  (coproduct-opensource/nucleus) is MIT-licensed.
