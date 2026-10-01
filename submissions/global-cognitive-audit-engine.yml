@@ -1,0 +1,228 @@
+# ---------------------------------------------------------------------------
+# NIST AI Metrology Center — community submission
+#
+# One YAML file = one metric or measurement methodology.
+# Upstream target path:  submissions/global-cognitive-audit-engine.yml
+# Intake repo:           https://github.com/usnistgov/ai-metrology-submissions
+#
+# STATUS: READY FOR SUBMISSION — all required fields resolved and validated against
+# the repository's own schema (check-jsonschema -> ok).
+#   * references     — three DOI citations: two peer-reviewed (mechanism grounding and
+#                      prior art) plus the methodology's own archived specification
+#                      (see Section 3)
+#   * contact_email  — ai@nohnlins.com, the public address published across the
+#                      implementation repositories and the author's academic record
+#
+# Everything posted to the intake repository is public and non-confidential.
+#
+# Validate locally with the same check the repository runs:
+#   pip install check-jsonschema
+#   check-jsonschema --schemafile validation/schemas/v1.json \
+#       global-cognitive-audit-engine.yml
+# ---------------------------------------------------------------------------
+
+schema_version: "1.0"
+
+# --- Section 1: Identification and attribution (all four keys required) -----
+
+name: >-
+  Global Cognitive Audit Engine (GCAE) — Five-Operator Causal Audit Methodology
+
+applied_definition: |
+  **Subject of measurement.** A decision structure, modelled as the triple
+  $(D, \mathcal{A}, \mathcal{B})$: $D$ is an intended action or judgment;
+  $\mathcal{A} = \{A_1, \dots, A_n\}$ are the explicit premises on which $D$ depends,
+  each required to be falsifiable and non-circular; $\mathcal{B} = \{b_1, \dots, b_n\}$
+  are the branch responses, i.e. the structural change to $D$ when $A_i$ fails.
+
+  **Causal continuity predicate.**
+
+  $$p \rightarrow Q$$
+
+  $p$ denotes a principle, rule, or constraint; $Q$ a result, state, or consequence.
+  The arrow denotes an inseparable, continuous, non-bypassable causal connection. When
+  the continuity between $p$ and $Q$ is severed, obscured, or quietly altered, the
+  decision is no longer under governance — it is under narrative.
+
+  **Second-perspective decision formula.**
+
+  $$\neg A \Rightarrow \Delta D$$
+
+  A decision is valid only inside the boundary of its assumptions. For every critical
+  assumption $A_i$, the structural consequence of $\neg A_i$ must be stated. A branch
+  response is a structural change in $D$ — not a recommendation, and not an
+  alternative decision.
+
+  **Structural audit predicate.**
+
+  $$\Phi\{f_s, x, y\} \rightarrow \{\mathrm{True}, \mathrm{False}\}$$
+
+  Given the system function $f_s$ and input conditions $x, y$, $\Phi$ returns whether a
+  decision structure meets the minimum requirement of rational consistency. $\Phi$
+  produces audit conclusions only: no recommendation, no optimization, no score-based
+  guidance.
+
+  **Fragility functional.**
+
+  $$\Delta D(A_i) = \operatorname{clamp}_{[0,1]}\!\Big( w_0 + \sum_{k \in K} w_k \,
+  \phi_k(A_i) \Big)$$
+
+  where $\phi_k$ are deterministic fragility factors — branch coverage of $A_i$, the
+  number of downstream assumptions depending on $A_i$, vague-quantifier density, and
+  falsifiability of $A_i$ — and $w_k$ are fixed weights. $\Delta D$ is recomputed
+  identically on every run: no sampling, no randomness, no model call. The audited
+  system's fragility is reported as $\max_i \Delta D(A_i)$. $\Delta D$ is an ordinal
+  intra-decision ranking, not a calibrated probability.
+
+  **Pipeline.** Five operators run in a fixed order, each also usable alone, and a
+  terminal verification stage closes the sequence:
+
+  $$\mathrm{NS} \rightarrow \mathrm{IAP} \rightarrow \mathrm{LCH} \rightarrow
+  \mathrm{ANCH} \rightarrow \mathrm{RECON}$$
+
+  1. Narrative Stripping (NS) — removes rhetoric, affect, and vague quantifiers;
+     retains the logical core.
+  2. Implicit Assumption Perspective (IAP) — surfaces undeclared premises, privilege
+     bypass, and circular reasoning.
+  3. Vulnerability Hedging (LCH) — computes $\Delta D(A_i)$ per premise; locates the
+     most fragile variable and states how the chain can be repaired at that point.
+  4. Responsibility Anchoring (ANCH) — assigns each decision exactly one responsibility
+     anchor, traced to the minimum decision unit and immutable to subsequent revision,
+     plus a tamper-evident SHA-256 audit certificate (audit ID + nonce).
+  5. Causal Reconstruction (RECON) — rebuilds the chain after audit, so that it is a
+     defensible causal structure rather than a narrative.
+
+  **Terminal verification.** A deterministic fact cleanse runs after the pipeline and
+  is not a sixth operator. Every premise admitted into the chain must be either
+  established or explicitly marked unestablished; probabilistic qualification, hedged
+  quantifiers, and unverified assertions are removed rather than averaged into a score.
+  What the cleanse yields is a floor, not a verdict.
+
+  **Verdict.** The reconstructed chain is assigned one of three discrete levels —
+  AUDIT_PASS, AUDIT_WARN, or AUDIT_HALT — derived from the operators' boolean outputs,
+  with the tamper-evident SHA-256 certificate emitted by Responsibility Anchoring. The
+  core runs fully offline with zero external calls; language-model narrative rendering
+  is optional, disabled by default, and can never alter a verdict.
+
+  **Theoretical grounding.** The premise/branch-response structure is an instance of
+  assumption-based argumentation: a premise $A_i$ is an assumption, and a premise with
+  no branch response is an assumption that cannot be attacked, so the structure is
+  unassailable by construction. The requirement that the audit artefact be
+  recomputable by a party other than the operator follows the tamper-evident
+  audit-trail line of work for AI systems. The full specification of the five
+  operators, their formal predicates, and the governance-asymmetry condition
+  $p \rightarrow Q$ is documented in the archived preprint cited under references
+  [3], which is the normative definition of this methodology.
+
+submitter_organizations:
+  - Shanghai Linming Junhua Technology Co., Ltd.
+  - NOHN AI TECHNOLOGY PTE. LTD.
+
+contact_email: ai@nohnlins.com
+
+# --- Section 2: Context and limitations (optional) --------------------------
+
+ai_rmf_characteristics:
+  - Accountable & Transparent
+  - Secure & Resilient
+  - Valid & Reliable
+
+primary_tevv_application:
+  - Interpretability & Explanation Evaluation
+
+ai_lifecycle_stages:
+  - Deploy
+  - Use
+  - Operate & Monitor
+
+object_of_measurement:
+  - system
+
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+
+usage_details: |
+  Post-incident forensic reconstruction is the primary use case. After an AI system or
+  an AI-assisted decision has produced a harmful or disputed outcome, the engine
+  reconstructs the decision structure from the recorded artefact and returns a
+  deterministic verdict plus a tamper-evident certificate. Because the core is offline,
+  deterministic, and model-agnostic, the audit can be run by a party that is not the
+  system's operator, on infrastructure the operator does not control, and independently
+  re-run later by a third party to the same result.
+
+  Secondary uses: pre-deployment structural review of high-stakes decision pipelines;
+  assumption auditing of AI-assisted procurement, allocation, and policy decisions; and
+  producing a machine-checkable audit artefact for regulatory reporting obligations.
+
+known_failure_modes: |
+  (1) The audit is bounded by the premise set it is given. Assumptions that are never
+  declared are never audited; a party that omits the real load-bearing assumption
+  reduces the audit's coverage. The engine surfaces what is stated, not what is
+  strategically withheld.
+  (2) Branch coverage is a declared field. A decision structure can lower its reported
+  fragility by attaching a nominal branch response to every premise without any
+  substantive change to the decision: presence and structural content of a branch are
+  checked, quality of execution is not.
+  (3) Narrative stripping uses a deterministic marker lexicon. Paraphrase that avoids
+  the lexicon evades stripping; this is why NS output is reported as a derived artefact
+  rather than as a verdict.
+  (4) The engine asserts facts, locates the most fragile variable, and anchors
+  responsibility. It does not block execution, does not enforce runtime policy, and is
+  not a substitute for guardrails, kill switches, or access control.
+  (5) $\Delta D$ rankings are ordinal. Comparing $\Delta D$ values across unrelated
+  decisions is not supported and should not be interpreted as a comparative risk score.
+
+modality:
+  - text
+  - structured data
+
+# --- Section 3: Provenance, tooling, and requirements -----------------------
+
+references:
+  # Three citations, all DOI-based. The first two are peer-reviewed and ground either
+  # the mechanism or the audit problem; the third is the specification of this
+  # methodology itself, archived under a DOI so the method is independently citable.
+  #   [1] grounding for the premise/branch-response structure (assumption-based
+  #       argumentation);
+  #   [2] peer-reviewed prior work on verifiable, tamper-evident audit trails for LLM
+  #       systems, which is the measurement problem this entry addresses;
+  #   [3] full specification of the five-operator pipeline and its formal predicates,
+  #       by this submitter, archived as a citable preprint.
+  - >-
+    Bondarenko, A., Dung, P. M., Kowalski, R. A., & Toni, F. (1997). An abstract,
+    argumentation-theoretic approach to default reasoning. Artificial Intelligence,
+    93(1-2), 63-101. https://doi.org/10.1016/S0004-3702(97)00015-5
+  - >-
+    Li, D., Yu, G., Wang, X., & Liang, B. (2025). AuditableLLM: A Hash-Chain-Backed,
+    Compliance-Aware Auditable Framework for Large Language Models. Electronics,
+    15(1), 56. https://doi.org/10.3390/electronics15010056
+  - >-
+    Chen, J. (2026). Can AI Be a Trustworthy Tool? Deterministic Causal Auditing as a
+    Structural Remedy for the Large-Model Compliance Crisis and the Erosion of Global
+    Trust [Preprint]. Zenodo. https://doi.org/10.5281/zenodo.23054547
+
+implementation_resources:
+  - https://github.com/nohn3043-arch/second-perspective
+  - https://nohnlins.com/audit/
+
+common_variants:
+  - Narrative Stripping (NS) — single-operator sub-audit
+  - Implicit Assumption Perspective (IAP) — single-operator sub-audit
+  - Vulnerability Hedging (LCH) — single-operator sub-audit
+  - Responsibility Anchoring (ANCH) — single-operator sub-audit
+  - Causal Reconstruction (RECON) — single-operator sub-audit
+
+computational_requirements: >-
+  Python 3 standard library only; no third-party packages, no GPU, and no network access
+  required for the core audit. The core is single-threaded and CPU-only, and a full
+  five-operator audit over a few dozen premises completes in under a second. The
+  optional narrative-rendering layer is the only component that can call an external
+  language model; it is disabled by default.
+
+usage_rights: >-
+  Dual-track proprietary licence. Free for individual, non-commercial research.
+  Government agencies, public institutions, and enterprises require a paid commercial
+  licence signed in advance; copying, deploying, integrating, or distributing the work
+  before such an agreement is not permitted. Licensor and governing law depend on the
+  user's location: PRC law for users in China, Singapore law for users outside China.
+  Full terms in LICENSE at the repository below.
