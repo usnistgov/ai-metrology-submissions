@@ -1,0 +1,154 @@
+# ---------------------------------------------------------------------------
+# NIST AI Metrology Center — Measurement Method Submission
+# Judge Health: A Continuous Validation Protocol for Model-Based Evaluators
+# Schema version: 1.0
+# Draft — for human review before submission
+# ---------------------------------------------------------------------------
+
+schema_version: "1.0"
+
+name: "Judge Health \u2014 A Continuous Validation Protocol for Model-Based Evaluators"
+
+applied_definition: |
+  Judge Health is a measurement methodology for continuously validating the reliability
+  of a binary model-based evaluator (LLM-as-judge). The object of measurement is the
+  evaluator system itself, not the AI system it evaluates.
+
+  **Reliability profile** — computed per evaluation run over a representative
+  human-reference sample, with the positive class fixed to FAIL (the minority,
+  high-stakes class):
+
+  $$\text{FAIL Recall (Sensitivity)} = \frac{TP}{TP + FN}$$
+
+  $$\text{PASS Recall (Specificity)} = \frac{TN}{TN + FP}$$
+
+  Both are reported with 95% Wilson score confidence intervals, which outperform Wald
+  intervals at extreme proportions and small sample sizes. Overall agreement
+  ($$OA = \frac{TP + TN}{n}$$) is reported for reference; it is not the primary
+  decision criterion. CI width per class is also reported to quantify uncertainty
+  relative to sample size.
+
+  **Two analytically separate evidence streams**:
+  - *Representative sample*: reflects the true case distribution; valid for
+    population-level reliability estimates.
+  - *Targeted/risk sample*: known failures and high-stakes edge cases;
+    investigation only — never mixed into population-level estimates.
+
+  **Metric triggers and change triggers** — thresholds are configured per deployment
+  context. A trigger signals that the observed metric crossed a configured boundary
+  and investigation is required; it is not a verdict. No universal threshold is defined.
+
+  **Diagnosis before intervention** — before a candidate evaluator is created, a
+  root-cause diagnosis category is recorded (e.g., evaluator rubric, reference process
+  degradation, taxonomy shift). Intervention without diagnosis is blocked.
+
+  **Candidate isolation** — a candidate evaluator is always a new, independent version.
+  The active evaluator is never mutated. Candidate runs are tracked separately from
+  baseline runs. No result from a candidate run is back-propagated to the active
+  evaluator.
+
+  **Revalidation** — a candidate is run from scratch against the same representative
+  human-reference sample as the baseline. No pre-computed judgments are reused; no
+  fixture fallback is permitted in production.
+
+  **Human accept/reject decision** — promotion requires an explicit human decision.
+  The decision-maker reviews the candidate's class-aware reliability profile relative
+  to the baseline, against deployment-specific acceptance criteria that may incorporate
+  representative reliability evidence, targeted/risk evidence, or both.
+  There is no automatic promotion and no universal reliability score or threshold.
+
+  **Historical immutability** — completed runs are sealed and append-only. Every
+  accept/reject decision is recorded with timestamp, version identifiers, and human
+  rationale. History cannot be rewritten.
+
+submitter_organizations:
+  - Pdro AI Studio
+
+contact_email: pdrobrand@gmail.com
+
+ai_rmf_characteristics:
+  - Valid & Reliable
+  - Accountable & Transparent
+
+ai_lifecycle_stages:
+  - Build
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - system
+
+model_specificity: "model specific \u2014 LLM-based evaluators (LLM-as-judge)"
+
+domain_specificity: domain agnostic
+
+usage_details: |
+  Highest value when:
+  1. The evaluator's error distribution is asymmetric across classes. Deployment-specific
+     risk determines which error modes and classes require priority attention; aggregate
+     agreement can conceal poor reliability on minority or high-stakes classes.
+  2. A rubric change, model version change, or taxonomy update must be accepted or
+     rejected on reproducible evidence rather than intuition. Candidate isolation
+     ensures the active evaluator is never silently mutated.
+  3. An auditable calibration record is required: each accept/reject decision is sealed
+     with timestamp, version identifiers, and human rationale.
+  4. The evaluation workload cannot be fully human-reviewed at scale, but a
+     representative human-reference sample is feasible.
+
+  Least value when: the evaluation task produces near-perfect evaluator agreement with
+  no class imbalance across the population, or when model-based evaluation is not used.
+
+known_failure_modes: |
+  1. Correlated evaluator errors: when the evaluator model and the evaluated model
+     share the same architecture or provider, their errors may be correlated,
+     undermining the independence assumption. Mitigation: document provider and
+     architecture overlap per deployment.
+  2. IRR not computationally enforced: inter-rater reliability (IRR) is specified in
+     the methodology as a precondition for production-grade validation but is not yet
+     enforced as an automated gate before a reference session is accepted (v0.2).
+  3. Sampling variance at small n: class-specific confidence intervals can remain wide
+     when a representative sample contains few examples of a class. Point estimates must
+     be interpreted alongside their confidence intervals, not in isolation.
+  4. Binary labels only: the current implementation supports only binary PASS/FAIL
+     classification. Multi-class taxonomies are not yet supported.
+  5. Reference label contamination: if the evaluator receives ground-truth labels,
+     prior judgments, or expected results during evaluation, the blind evaluation
+     assumption is violated. All evaluator calls in the reference implementation are
+     server-side only; reference labels are never passed to the evaluator prompt.
+  6. No temporal trend analysis: each run is an independent point-in-time measurement;
+     gradual evaluator drift across sessions is not tracked.
+
+modality:
+  - text
+
+references:
+  - >-
+    Zheng, L., Chiang, W.-L., Sheng, Y., Zhuang, S., Wu, Z., Zhuang, Y., Lin, Z.,
+    Li, Z., Li, D., Xing, E. P., Zhang, H., Gonzalez, J. E., and Stoica, I. (2023).
+    Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena. Advances in Neural
+    Information Processing Systems 36 (NeurIPS 2023).
+    https://arxiv.org/abs/2306.05685
+  - >-
+    Thakur, A. S., Choudhary, K., Ramayapally, V. S., Vaidyanathan, S., and
+    Hupkes, D. (2025). Judging the Judges: Evaluating Alignment and Vulnerabilities
+    in LLMs-as-Judges. Proceedings of the Fourth Workshop on Generation, Evaluation
+    and Metrics (GEM2), pp. 404-430. https://aclanthology.org/2025.gem-1.33
+
+implementation_resources:
+  - https://github.com/PdroBrandao/judge-health
+  - >-
+    End-to-end calibration worked example (Run 0001, 12 candidates, 70 cases, one
+    promoted): https://github.com/PdroBrandao/judge-health/blob/main/docs/calibration-run-0001.md
+
+related_metrics:
+  - >-
+    Cohen's kappa: inter-rater reliability for the human reference sample; specified
+    in the methodology as a precondition instrument for production-grade validation.
+
+computational_requirements: >-
+  Node.js 18 or later. Access to an OpenAI-compatible API (all evaluator inference
+  calls execute server-side; no local GPU required). Local filesystem with write
+  access for atomic JSON state persistence. No cloud infrastructure required for
+  single-user research use.
+
+usage_rights: MIT License
