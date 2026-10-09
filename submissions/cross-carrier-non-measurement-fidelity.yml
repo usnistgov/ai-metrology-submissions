@@ -1,0 +1,100 @@
+schema_version: "1.0"
+name: Cross-Carrier Non-Measurement Fidelity (CNMF)
+applied_definition: |
+  A test methodology for assessing whether an AI measurement or evaluation
+  record whose source state is UNMEASURED or UNCHECKABLE retains that
+  non-measurement meaning when exported into other evidence formats, rather
+  than acquiring a numerical evaluation score through a carrier mapping.
+
+  Construct a versioned test corpus containing valid records with an explicit
+  source state, a null measured value, stable record identity and at least one
+  declared limit. Run each through a named, version-pinned export adapter.
+  For every eligible (record, adapter) pair, inspect both output semantics and
+  structural validity. The pair passes only when (a) the export is accepted,
+  (b) the emitted representation retains an explicit interpretable unknown /
+  non-measurement status with its original source state or a documented
+  reversible mapping, and (c) it emits no numeric measured value, confidence
+  score or risk score purporting to stand for the absent measurement.
+
+  CNMF = passing eligible (record, adapter) pairs / all eligible pairs.
+  Report numerator, denominator, adapter versions, per-source-state
+  denominators and exclusions. Missing output, ambiguous state mappings and
+  incompatible adapters are counted separately and do not become passes.
+  An empty eligible set reports NOT_MEASURED rather than 100 percent.
+  A second mutation-control test intentionally inserts a numeric score into
+  an otherwise consistent UNMEASURED or UNCHECKABLE source record; a
+  correctly fail-closed adapter rejects this rather than silently exporting
+  the forged score. Report mutation-control outcomes separately from CNMF.
+
+  This measures evidence transport fidelity, not the validity of the original
+  evaluation instrument or the accuracy, safety or compliance of an AI system.
+submitter_organizations:
+  - CSOAI Ltd
+contact_email: nicholas@csoai.org
+ai_rmf_characteristics:
+  - Valid & Reliable
+  - Accountable & Transparent
+ai_lifecycle_stages:
+  - Build
+  - Deploy
+  - Operate & Monitor
+object_of_measurement:
+  - system
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+modality:
+  - structured data
+usage_details: |
+  For AI evaluation and agent-governance pipelines that convert one
+  measurement-status record into OCSF, OpenTelemetry, SARIF, in-toto,
+  ECS/HEC, W3C Agent Conformance, or OASF representations.
+  The method is especially relevant when a missing grader run, inaccessible
+  evidence, or an untestable check must never turn into a numeric zero or a
+  successful assurance label downstream. The same records and adapters
+  must be version-pinned, with an explicit mapping contract per carrier.
+
+  This submission is distinct from NIST community PR #19 (Paired-Control
+  Selectivity Test for Non-Measurement): that method tests whether an
+  evaluator distinguishes a measurable control from a degenerate input.
+  CNMF checks the downstream fidelity of already-issued non-measurement
+  statuses across evidence export formats; it does not test the evaluator's
+  ability to produce an adverse result.
+known_failure_modes: |
+  Export adapters can carry non-measurement information in implementation-
+  specific extension fields which another consumer ignores. The test must
+  verify documented interpretability, not merely the presence of a string.
+  Some carrier schemas contain unrelated numeric metadata; only fields
+  presented as measurement/confidence/risk results are prohibited.
+  An exporter passing tested fixtures does not establish interoperability
+  for untested carrier versions or third-party importers. A supplied event
+  with fabricated source state can still export faithfully; this method
+  cannot prove the source observation was truthful. Synthetic fixtures
+  are not outside independent adoption. Currently published CSOAI tests
+  are first-party tests, not independent validation of CNMF as a metric.
+references:
+  - >-
+    Moreau, L. et al. (2011), The Open Provenance Model core specification
+    (v1.1), Future Generation Computer Systems 27(6), 743-756.
+    https://doi.org/10.1016/j.future.2010.07.005
+    (Supports cross-system faithful provenance representations; does not
+    independently validate this proposed metric.)
+  - >-
+    Liu, H., Kuo, F.-C., Towey, D., and Chen, T. Y. (2014), How Effectively
+    Does Metamorphic Testing Alleviate the Oracle Problem?,
+    IEEE Transactions on Software Engineering 40(1), 4-22.
+    https://doi.org/10.1109/TSE.2013.46
+    (Supports testing a required relation across transformed outputs,
+    not empirical validation of CNMF.)
+implementation_resources:
+  - https://github.com/CSOAI-ORG/councilof-ai/blob/master/packages/evidence-fabric/tests/test_doctrine.py
+  - https://github.com/CSOAI-ORG/councilof-ai/blob/master/packages/evidence-fabric/README.md
+  - https://github.com/CSOAI-ORG/councilof-ai/blob/master/packages/evidence-fabric/event.py
+related_metrics:
+  - Paired-control selectivity for non-measurement (related but distinct; NIST community PR 19)
+  - Adversarial detection of forged measurement values
+computational_requirements: >-
+  CPU-only Python 3 and the dependencies declared by the linked
+  evidence-fabric project. Does not require GPU or external model inference.
+usage_rights: >-
+  Reference implementation code Apache-2.0; csoai.evidence-event/0.1
+  schema and mapping material CC0-1.0, according to the linked source.
