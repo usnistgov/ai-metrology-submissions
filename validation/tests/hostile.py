@@ -55,6 +55,10 @@ SCHEMA_STEP = "check-jsonschema"
 # environment its subject runs in, rather than inheriting whatever the runner had.
 CASE_ENV = {key: value for key, value in os.environ.items() if key != "GITHUB_ACTIONS"}
 
+# A submission name outside ASCII. The filename rule rejects it, which is a finding;
+# the point here is that reading the diff must survive long enough to say so.
+NON_ASCII_SUBMISSION = "毒性.yml"
+
 VALID = """\
 schema_version: "1.0"
 name: Placeholder Metric
@@ -232,10 +236,11 @@ def check_annotations() -> list[str]:
             result = subprocess.run(
                 [sys.executable, str(VALIDATOR), "inspect", "--files",
                  f"submissions/{filename}", "--stage-dir", str(root / "stage")],
-                cwd=root, capture_output=True, text=True, timeout=120,
+                cwd=root, capture_output=True, timeout=120,
                 env={**CASE_ENV, "GITHUB_ACTIONS": "true"},
             )  # fmt: skip
-        output = result.stdout + result.stderr
+        # Decoded here, as run_case already does: these names are deliberately not ASCII.
+        output = (result.stdout + result.stderr).decode("utf-8", "replace")
         shown = filename.replace("\n", "\\n")
 
         if "Traceback (most recent call last)" in output:
@@ -263,6 +268,60 @@ def check_annotations() -> list[str]:
                 # own output intact and only becomes a newline when GitHub decodes it.
                 # Decoding it here is reading the line the way GitHub will.
                 failures.append(f"{shown}: file= decodes to {unquote(value)!r}")
+    return failures
+
+
+def check_changed_files_encoding() -> list[str]:
+    """The pull request path, whose diff carries a name the locale cannot decode.
+
+    Every case above passes `--files`, so none of them reaches `changed_files`, which is
+    the path CI actually takes. That diff is read with `-z`, which turns git's path
+    quoting off, so a non-ASCII submission name arrives as raw UTF-8 bytes. Decoded with
+    the locale instead, the read fails inside subprocess's reader thread, stdout comes
+    back None, and the split that follows raises. The reviewer sees a traceback against a
+    submission that may be perfectly valid.
+
+    The locale is forced here rather than assumed: on a UTF-8 runner this path is fine,
+    which is why nothing upstream has ever caught it.
+    """
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+
+        def run(*args: str) -> None:
+            subprocess.run(args, cwd=root, capture_output=True, timeout=120)
+
+        run("git", "init", "-q", "-b", "main")
+        run("git", "config", "user.email", "corpus@example.org")
+        run("git", "config", "user.name", "corpus")
+        (root / "README.md").write_text("seed\n", encoding="utf-8")
+        run("git", "add", "-A")
+        run("git", "commit", "-q", "-m", "seed")
+
+        (root / "submissions").mkdir()
+        try:
+            (root / "submissions" / NON_ASCII_SUBMISSION).write_text(VALID, encoding="utf-8")
+        except OSError as exc:
+            return [f"(skipped: the filesystem refused the name: {exc.strerror})"]
+        run("git", "add", "-A")
+        run("git", "commit", "-q", "-m", "add submission")
+
+        result = subprocess.run(
+            [sys.executable, str(VALIDATOR), "inspect", "--base", "HEAD~1",
+             "--head", "HEAD", "--stage-dir", str(root / "stage")],
+            cwd=root, capture_output=True, timeout=120,
+            env={**CASE_ENV, "LC_ALL": "C", "LANG": "C",
+                 "PYTHONCOERCECLOCALE": "0", "PYTHONUTF8": "0"},
+        )  # fmt: skip
+
+    # Decoded here, not by text=True, for the same reason the fix under test exists.
+    output = (result.stdout + result.stderr).decode("utf-8", "replace")
+    failures = []
+    if "Traceback (most recent call last)" in output:
+        failures.append("a non-ASCII path in the diff produced a traceback")
+    if result.returncode not in (0, 1):
+        failures.append(
+            f"exit {result.returncode} on a non-ASCII path, a crash rather than a finding"
+        )
     return failures
 
 
@@ -325,6 +384,7 @@ def main() -> int:
     for label, failures in [
         ("Markdown encoder", check_code_helper()),
         ("annotation escaping", check_annotations()),
+        ("non-ASCII path in the diff", check_changed_files_encoding()),
         ("undefined names (ruff --select F)", check_static()),
     ]:
         # A check that could not run is not a check that passed. Printing PASS for it
