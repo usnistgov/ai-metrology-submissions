@@ -1,0 +1,78 @@
+schema_version: "1.0"
+
+name: Selective Risk at Target Coverage
+applied_definition: |
+  A selective predictor $(f,g)$ answers with $f(x)$ when $g(x)=1$ and abstains
+  otherwise. With an uncertainty score $s$ (smaller is more confident) and a
+  threshold $t$, $g(x)=\mathbb{1}\{s(x)\le t\}$. For a loss
+  $\ell\in[0,1]$, coverage and selective risk are
+  $$\Phi(f,g)=\mathbb{E}[g(X)],\qquad
+  R(f,g)=\frac{\mathbb{E}[\ell(f(X),Y)\,g(X)]}{\Phi(f,g)}.$$
+  $R$ is undefined when $\Phi=0$. For classification $\ell$ is the 0/1 error;
+  for regression use $\ell=\mathbb{1}\{|f(x)-y|>\varepsilon\}$ with a declared
+  tolerance $\varepsilon$. To report at target coverage $c$, fix $t$ on a
+  calibration split disjoint from the test split, as the
+  $\lceil nc\rceil$-th smallest of its $n$ scores (ties accepted). On the test
+  split, report realised coverage, $\hat R$ = accepted errors / accepted, and
+  both counts.
+submitter_organizations:
+  - Vers3Dynamics
+contact_email: ciao_chris@proton.me
+
+ai_rmf_characteristics:
+  - Valid & Reliable
+ai_lifecycle_stages:
+  - Build
+  - Deploy
+  - Operate & Monitor
+object_of_measurement:
+  - model
+  - system
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+usage_details: |
+  Use when a system may defer an input to a person or a fallback, and the cost
+  of an accepted wrong answer matters: triage, screening, forecasting and
+  sensor alerts. Before deployment, compare models or uncertainty scores at the
+  same target coverage. In operation, track the accepted-error rate and the
+  realised coverage over time with the threshold held fixed.
+  Interpret $\hat R$ only together with its coverage. A lower risk obtained by
+  abstaining more is not an improvement unless coverage is matched or the cost
+  of abstention is stated. Report counts and an interval: binomial (for
+  example Clopper-Pearson) for independent test units; a moving-block or
+  whole-cluster bootstrap for time series, sites or repeated subjects.
+  Scope: applies to any predictor that outputs a per-instance score, given
+  labelled calibration and test data. It does not measure probability
+  calibration (pair it with the Brier score or expected calibration error), it
+  is not a guarantee under distribution shift, and it differs from refusal-rate
+  metrics, which count how often a generative system declines a request rather
+  than how often its accepted answers are wrong.
+known_failure_modes: |
+  Calibration-quantile thresholds give no finite-sample guarantee: under shift
+  between calibration and use, realised coverage and risk can both move
+  sharply. Gaming: a model can lower its reported risk by abstaining more,
+  hence the requirement to fix or report coverage. Rare error events, small
+  accepted sets and tied scores make $\hat R$ unstable. Treating dependent
+  units (hours, sites, repeated subjects) as independent understates
+  uncertainty. Thresholds chosen on test data (the retrospective variant) are
+  optimistic and must not be deployed. Scores that are not monotone in error
+  likelihood make the metric uninformative about the model's accuracy.
+
+references:
+  - "Ran El-Yaniv and Yair Wiener. On the Foundations of Noise-free Selective Classification. Journal of Machine Learning Research 11:1605-1641, 2010. https://www.jmlr.org/papers/v11/el-yaniv10a.html"
+  - "Yonatan Geifman and Ran El-Yaniv. Selective Classification for Deep Neural Networks. Advances in Neural Information Processing Systems 30 (NeurIPS 2017). https://papers.nips.cc/paper_files/paper/2017/hash/4a8423d5e91fda00bb7e46540e2b0cf1-Abstract.html"
+  - "Hans R. Kunsch. The Jackknife and the Bootstrap for General Stationary Observations. Annals of Statistics 17(3):1217-1241, 1989. https://projecteuclid.org/journals/annals-of-statistics/volume-17/issue-3/The-Jackknife-and-the-Bootstrap-for-General-Stationary-Observations/10.1214/aos/1176347265.full"
+implementation_resources:
+  - https://github.com/topherchris420/triad/blob/master/docs/metrology/selective-risk-quickstart.md
+  - https://github.com/topherchris420/triad/blob/master/src/metrology.rs
+  - https://torch-uncertainty.github.io/generated/torch_uncertainty.metrics.classification.RiskAtxCov.html
+common_variants:
+  - Retrospective selective risk at matched test coverage (descriptive model comparison)
+  - Risk-coverage curve and the area under it (AURC)
+  - Coverage at a target selective risk
+related_metrics:
+  - Coverage (abstention rate)
+  - Brier score and expected calibration error
+  - Split-conformal prediction-interval coverage
+computational_requirements: CPU only; linear-logarithmic in the number of predictions (one sort).
+usage_rights: "TRIAD: MIT License; TorchUncertainty: Apache License 2.0"
