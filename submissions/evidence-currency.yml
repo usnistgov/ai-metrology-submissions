@@ -1,0 +1,125 @@
+schema_version: "1.0"
+
+name: Evidence Currency
+
+applied_definition: |
+  Evidence currency measures, at the moment a release or deployment decision is
+  made, whether the recorded check results behind that decision still describe
+  the exact content being released.
+
+  A *verdict* is a recorded result of a check (an evaluation run, a red-team
+  review, a scanner, a human review). Each verdict is bound to the step $s$ that
+  produced it and, for every file it covers, to that file's path $p$ and the
+  content hash $h$ of the bytes examined (a git blob id). At a revision $r$, let
+  $S_s(r)$ be the paths present at $r$ that step $s$ owes a verdict for: those
+  matching its declared scope (minus exclusions), together with any files it
+  declares as dependencies of the check itself. Let $h_r(p)$ be the content hash
+  of $p$ at $r$. Each pair $(s, p)$ with $p \in S_s(r)$ is in exactly one state:
+
+  - **current**: a verdict exists for $(s, p, h_r(p))$;
+  - **stale**: a verdict exists for $(s, p)$, but only at hashes other than
+    $h_r(p)$;
+  - **never examined**: no verdict exists for $(s, p)$ at any hash.
+
+  Per step, with $n_s = |S_s(r)| = c_s + t_s + u_s$ (current, stale, never
+  examined):
+
+  $$\mathrm{currency}_s(r) = \frac{c_s}{n_s}$$
+
+  and over all (step, path) pairs of applicable steps:
+
+  $$\mathrm{currency}(r) = \frac{\sum_s c_s}{\sum_s n_s}$$
+
+  Reporting rules, all part of the method:
+
+  1. $c_s$, $t_s$ and $u_s$ are always reported alongside the ratio, never only
+     the ratio.
+  2. A step that does not apply at $r$ (its scope is empty, its applicability
+     condition matches no file, or the decision being made does not require it)
+     is reported as **not applicable**, with currency undefined (null), and is
+     excluded from the aggregate. An empty scope is never reported as 100%.
+  3. A current verdict counts as current whatever it recorded (pass, fail or
+     undecided). Currency is a property of the evidence, not of the outcome;
+     outcomes are reported separately.
+
+submitter_organizations:
+  - Tim Brigham (independent researcher)
+
+contact_email: timbrigham@gmail.com
+
+ai_rmf_characteristics:
+  - Accountable & Transparent
+
+ai_lifecycle_stages:
+  - Build
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - system
+
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+
+usage_details: |
+  Use it at a release or deployment decision, to check that the evaluations a
+  release cites (in a model card, assurance case or release checklist) were run
+  on the exact files shipped.
+
+  Example. A safety evaluation passed over a system prompt, a guardrail policy,
+  a tool definition and an evaluation set. The prompt is then edited and a
+  second tool added. At release, currency is 3/5 (60%): one file stale (re-run
+  needed), one never examined (first run needed), while the recorded results
+  still read 4 of 4 PASS. The linked example runs this scenario. A per-step
+  threshold (e.g. 100% for a safety evaluation) can be set without changing
+  what is measured.
+
+  Grounding: a newly proposed measurement, specified by the applied_definition
+  above; the submitter knows of no peer-reviewed source that defines it. Its
+  validity rule (a result holds only while its inputs' hashes are unchanged) is
+  the one used in regression test selection (Gligoric et al., 2015). Its
+  per-step check of recorded evidence against the hashes of delivered artifacts
+  follows in-toto (Torres-Arias et al., 2019). The implementation is a
+  single-author proof of concept used in one environment; it is not
+  production-ready and has not been independently replicated.
+
+known_failure_modes: |
+  1. Records are not re-run. A fabricated or mistaken record counts as
+     current; the metric is only as trustworthy as whatever writes records.
+  2. Scope sets the denominator. Files a check depends on but its scope omits
+     are in no state, so currency can read 100% while they were never
+     examined. Scope declarations need their own review.
+  3. Checker changes (a new evaluator version or threshold) leave earlier
+     verdicts current unless the checker's files are declared as dependencies
+     of the step (`switches`).
+  4. Untracked inputs (weights fetched at run time, remote APIs, environment
+     variables, seeds) can change without making any verdict stale.
+  5. A file renamed with unchanged bytes counts as never examined until a
+     verdict names the new path.
+  6. Not a quality measure: currency can be 100% with every verdict a FAIL.
+     Read it per step and alongside outcomes.
+
+references:
+  - >-
+    Gligoric, M., Eloussi, L., & Marinov, D. (2015). "Practical Regression
+    Test Selection with Dynamic File Dependencies." Proceedings of the 2015
+    International Symposium on Software Testing and Analysis (ISSTA 2015),
+    ACM, 211-222. https://doi.org/10.1145/2771783.2771784
+  - >-
+    Torres-Arias, S., Afzali, H., Kuppusamy, T. K., Curtmola, R., & Cappos,
+    J. (2019). "in-toto: Providing farm-to-table guarantees for bits and
+    bytes." 28th USENIX Security Symposium, 1393-1410.
+    https://www.usenix.org/conference/usenixsecurity19/presentation/torres-arias
+
+implementation_resources:
+  - >-
+    https://github.com/timbrigham/mcp-mayhem/tree/nist2026.1/verdictLedger/examples/evidence-currency
+  - >-
+    https://github.com/timbrigham/mcp-mayhem/tree/nist2026.1/verdictLedger
+
+computational_requirements: >-
+  CPU only, negligible cost. Python 3.11+ and git 2.28+, standard library only,
+  run from a full checkout of the linked repository. The example runs in
+  seconds.
+
+usage_rights: Implementation is open source under the MIT License.
