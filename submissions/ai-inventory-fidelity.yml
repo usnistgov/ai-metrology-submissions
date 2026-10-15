@@ -1,0 +1,138 @@
+schema_version: "1.0"
+
+name: AI Inventory Fidelity
+
+applied_definition: |
+  Measures whether an inventory of an AI system's components (prompt templates,
+  tool definitions, guardrail and policy configurations, and model and dataset
+  references by digest) describes what is actually deployed, by reconciling
+  it, unmodified, against an observation of the deployment.
+
+  The inventory $I$ maps each active name to a content hash and lists retired
+  names; a malformed inventory (a name both active and retired, or
+  duplicated) is not measured. An observation source (a file scan of the
+  deployed artifact, or any listing that carries content digests) yields $P$,
+  mapping each present name to a hash. Each run reconciles $I$ against one
+  source, the reference for that run only: no single source, the inventory
+  included, is assumed complete or correct. An observed item that is
+  duplicated, unreadable,
+  not valid in its canonical form, or a reference with no content digest is
+  reported as an error, and its name is withheld from classification on both
+  sides. Hashes are SHA-256 over one canonical form,
+  used at both registration and observation:
+  - text (prompts, YAML configs): UTF-8, one leading BOM removed, CRLF and
+    CR rewritten to LF;
+  - JSON: re-serialised with sorted keys, no insignificant whitespace, and
+    numbers as Python's `json` module writes them;
+  - model and dataset references: the declared `sha256:` digest itself. A
+    label before `@` is not compared, and a tag-only reference is an error.
+
+  Every other name in $I \cup P$ falls in exactly one class:
+
+  - **matched**: active, present, same hash;
+  - **modified**: active, present, different hash;
+  - **vanished**: active, absent;
+  - **phantom**: present, not in $I$;
+  - **resurrected**: retired, present;
+  - **retired-absent**: retired, absent (correct; not counted).
+
+  With counts $m, d, v, p, z$:
+
+  $$\mathrm{precision} = \frac{m}{m+d+v}, \qquad \mathrm{recall} = \frac{m}{m+d+p+z}$$
+
+  Either ratio is undefined when its denominator is 0. The five counts and the
+  names in every non-matched class are always reported with the ratios, per
+  source.
+
+submitter_organizations:
+  - Tim Brigham (independent researcher)
+
+contact_email: timbrigham@gmail.com
+
+ai_rmf_characteristics:
+  - Accountable & Transparent
+
+ai_lifecycle_stages:
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - system
+
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+
+usage_details: |
+  System prompts, tool schemas and guardrail policies shape an AI system's
+  behaviour but are not tracked by package managers. AI-BOM formats (the SPDX
+  3.0 AI profile, CycloneDX ML-BOM) record what a system is said to contain;
+  this method checks such a record, down to file content, against what is
+  deployed. NIST AI RMF GOVERN 1.6 calls for mechanisms to inventory AI
+  systems; this is one way to test whether an inventory is accurate.
+
+  Run it against each independent source available, at every deployment
+  and on a schedule in operation, and track the trend. A component classed
+  differently by two sources means one source is wrong: investigate it.
+  Follow-up:
+  modified, review then re-register; vanished, retire or restore; phantom,
+  register and review; resurrected, investigate. Renames are never inferred:
+  an unrecorded rename is one vanished plus one phantom.
+
+  Example. An inventory lists a system prompt, two tools and a guardrail
+  policy, plus one retired tool. The deployment has an edited prompt, the two
+  tools, an unregistered third tool, the retired tool, and no guardrail
+  policy. Counts: matched 2, modified 1, vanished 1, phantom 1, resurrected 1.
+  Precision is 2/4 and recall is 2/5.
+
+  Grounding: a newly proposed method. The underlying measurement is
+  precision and recall of a claimed
+  component list against ground truth. Balliu et al. (2023) define precision
+  as "the share of dependencies in the SBOM that are correct with respect to
+  the ground truth", with dependencies "identical if their name and version
+  match precisely"; a version mismatch thus counts against both ratios, as
+  **modified** does here. Yu et al. (2024) compare "the reported libraries and
+  the ones actually installed". This method applies that measurement to an AI
+  inventory, using content hashes where artifacts carry no version. The
+  implementation is a single-author proof of concept used in one environment;
+  it is not production-ready and has not been independently replicated.
+
+known_failure_modes: |
+  1. An inventory generated from the scan, or by the same deploy step, scores
+     100% by construction. It must be maintained independently.
+  2. Each source is itself untrusted, and components it cannot see (loaded
+     at run time, fetched remotely, outside its layout) are in no class. List
+     what each source covered. Sources must be independent: sources derived
+     from one another (a CMDB fed by the same deploy pipeline as the
+     manifest) count as one. The reference implementation observes one
+     source type: a file scan of a fixed layout (prompts/, tools/,
+     guardrails/, models.json).
+  3. If registration and observation normalise content differently,
+     unchanged components read as modified. Use one canonicalisation routine
+     for both.
+  4. A result is a snapshot of one environment at one time.
+  5. Fidelity is not quality. An accurate inventory of an unsafe system
+     scores 100%.
+
+references:
+  - >-
+    Balliu, M., Baudry, B., Bobadilla, S., Ekstedt, M., Monperrus, M., Ron,
+    J., Sharma, A., Skoglund, G., Soto-Valero, C., & Wittlinger, M. (2023).
+    "Challenges of Producing Software Bill of Materials for Java." IEEE
+    Security & Privacy, 21(6), 12-23. https://doi.org/10.1109/MSEC.2023.3302956
+  - >-
+    Yu, S., Song, W., Hu, X., & Yin, H. (2024). "On the Correctness of
+    Metadata-Based SBOM Generation: A Differential Analysis Approach."
+    54th Annual IEEE/IFIP International Conference on Dependable Systems and
+    Networks (DSN 2024), 29-36. https://doi.org/10.1109/DSN58291.2024.00018
+
+implementation_resources:
+  - >-
+    https://github.com/timbrigham/mcp-mayhem/tree/nist2026.1/inventoryFidelity/examples/inventory-fidelity
+  - >-
+    https://github.com/timbrigham/mcp-mayhem/tree/nist2026.1/inventoryFidelity
+
+computational_requirements: >-
+  CPU only, negligible cost. Python 3.11 or later, standard library only.
+  Hashing cost scales with artifact size.
+
+usage_rights: Implementation is open source under the MIT License.
