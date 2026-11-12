@@ -1,0 +1,113 @@
+schema_version: "1.0"
+
+name: Brier Score
+
+applied_definition: |
+  The Brier Score measures the accuracy of probabilistic predictions. For $N$
+  observations and $C$ mutually exclusive classes, it is
+
+  $$BS = \frac{1}{N}\sum_{i=1}^{N}\sum_{c=1}^{C}(\hat{p}_{ic}-y_{ic})^2,$$
+
+  where $\hat{p}_{ic}$ is the predicted probability that observation $i$
+  belongs to class $c$, $\hat{p}_{ic}\in[0,1]$,
+  $\sum_{c=1}^{C}\hat{p}_{ic}=1$, and $y_{ic}$ is 1 when the observation
+  belongs to that class and 0 otherwise. Lower values are better, and 0 is a
+  perfect score. The unscaled multiclass form ranges from 0 to 2.
+
+  For a binary event, the customary form is
+
+  $$BS = \frac{1}{N}\sum_{i=1}^{N}(\hat{p}_{i}-y_{i})^2,$$
+
+  where $\hat{p}_{i}\in[0,1]$ and $y_i\in\{0,1\}$. This form ranges from 0 to
+  1. The Brier Score is a strictly proper scoring rule: in expectation, it is
+  minimized by reporting the forecaster's true probability.
+
+submitter_organizations:
+  - Anshul Gupta (independent contributor)
+
+contact_email: anshulgupta1512@gmail.com
+
+ai_rmf_characteristics:
+  - Valid & Reliable
+
+ai_lifecycle_stages:
+  - Build
+  - Use
+  - Deploy
+  - Operate & Monitor
+
+object_of_measurement:
+  - model
+  - system
+
+model_specificity: model agnostic
+domain_specificity: domain agnostic
+
+usage_details: |
+  Use the Brier Score when a model or system produces probabilities for
+  outcomes that can later be observed. Common uses include forecasting,
+  triage, prioritization, risk scoring, and escalation decisions.
+
+  Calculate the score on labelled data that represents the intended population
+  and time period. Report the sample size, outcome definition, forecast horizon,
+  weighting method, and whether the binary or unscaled multiclass form was used.
+  Compare systems on the same evaluation set and include a simple reference
+  forecast. For a prospective comparison, estimate the reference event rate
+  from training or earlier data. For ongoing monitoring, calculate the score
+  over fixed time windows and relevant operating segments.
+
+  Use separate measures to assess decision thresholds, business actions,
+  allocation of human review, and the consequences of different errors.
+
+known_failure_modes: |
+  The Brier Score combines calibration, resolution, and outcome uncertainty.
+  A lower score does not by itself show that a model is better calibrated.
+  Report a calibration curve or a Brier decomposition when calibration is the
+  main question, and use a discrimination measure when ranking performance also
+  matters.
+
+  Raw scores can change with the event rate, forecast horizon, and outcome
+  definition. Comparisons across different populations or time periods can
+  therefore be misleading. An average can also hide poor results for an
+  important group, period, or operating condition. Delayed, incomplete, or
+  incorrect outcome labels will affect the score. Reporting only favorable
+  segments or time windows can make results appear better than general
+  performance.
+
+  Binary and multiclass implementations may use different scaling conventions.
+  Report the formula, software settings, evaluation set, and any sample weights.
+
+references:
+  - >-
+    Brier, G. W. (1950). "Verification of Forecasts Expressed in Terms of
+    Probability." Monthly Weather Review, 78(1), 1-3.
+    https://doi.org/10.1175/1520-0493%281950%29078%3C0001%3AVOFEIT%3E2.0.CO%3B2
+  - >-
+    Gneiting, T., & Raftery, A. E. (2007). "Strictly Proper Scoring Rules,
+    Prediction, and Estimation." Journal of the American Statistical
+    Association, 102(477), 359-378.
+    https://doi.org/10.1198/016214506000001437
+
+implementation_resources:
+  - https://scikit-learn.org/stable/modules/generated/sklearn.metrics.brier_score_loss.html
+
+common_variants:
+  - Binary Brier Score
+  - Multiclass Brier Score
+  - Sample-weighted Brier Score
+  - Brier Skill Score
+
+related_metrics:
+  - Log loss
+  - Calibration curve or reliability diagram
+  - Expected Calibration Error
+  - Brier Score decomposition into reliability, resolution, and uncertainty
+  - Area under the receiver operating characteristic curve
+
+computational_requirements: >-
+  CPU only. Requires predicted probabilities and observed outcome labels for
+  the evaluation set. No specialized hardware is needed.
+
+usage_rights: >-
+  The Brier Score is a published mathematical metric. The listed scikit-learn
+  implementation is distributed under the BSD 3-Clause License.
